@@ -1,0 +1,12 @@
+---
+title: "DataReview_Sarah"
+author: "Sarah Christen"
+date: "2024-11-18"
+output: pdf_document
+---
+
+```{r}
+setwd("~/uvaMSDS/stat6021/project2/Project2_Group2_STAT6021")
+Data <- read.csv("kc_house_data.csv",header = TRUE)
+```
+
