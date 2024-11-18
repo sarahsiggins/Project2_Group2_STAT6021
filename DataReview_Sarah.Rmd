@@ -10,3 +10,8 @@ setwd("~/uvaMSDS/stat6021/project2/Project2_Group2_STAT6021")
 Data <- read.csv("kc_house_data.csv",header = TRUE)
 ```
 
+```{r}
+houseSales <- nrow(Data)
+houses <- length(unique(Data$id))
+```
+
