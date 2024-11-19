@@ -1,0 +1,49 @@
+---
+title: "Project 2"
+author: "James Caldwell"
+output: pdf_document
+---
+
+```{r,echo=FALSE,results='hide', message=FALSE}
+rm(list = ls())
+library(dplyr)
+library(MASS)
+library(ggplot2)
+library(MASS) ##to use boxcox function
+library(GGally)
+library(faraway)
+library(leaps)
+library(car)
+# ctrl alt i is shortcut for adding a new r chunk
+# Shortcut is Ctrl + Shift + M for %>% symbols
+
+```
+
+```{r}
+Data<-read.csv("kc_house_data.csv", sep=",", header=TRUE)
+
+ggplot(Data, aes(y=price))+
+  geom_boxplot()
+# Does $8,000,000 seem reasonable?
+
+ggplot(Data, aes(y=bedrooms))+
+  geom_boxplot()
+
+ggplot(Data, aes(y=floors))+
+  geom_boxplot()
+
+ggplot(Data, aes(y=sqft_living))+
+  geom_boxplot()
+
+ggplot(Data, aes(y=grade))+
+  geom_boxplot()
+
+ggplot(Data, aes(y=yr_built))+
+  geom_boxplot()
+```
+```{r}
+distinct(Data, id)
+```
+It looks like there are ~200 homes that are included twice
+
+
