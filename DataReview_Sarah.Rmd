@@ -5,8 +5,9 @@ date: "2024-11-18"
 output: pdf_document
 ---
 
-```{r}
+```{r,include = FALSE}
 library(tidyverse)
+library(ggplot2)
 library(GGally)
 library(scales)
 library(patchwork)
@@ -18,7 +19,7 @@ setwd("~/uvaMSDS/stat6021/project2/Project2_Group2_STAT6021")
 Data <- read.csv("kc_house_data.csv",header = TRUE)
 ```
 
-```{r}
+```{r,include = FALSE}
 which(is.na(Data)) # no N/As in Data
 colnames(Data)
 
@@ -37,63 +38,9 @@ duplicate_house_id <- Data |>
 renovated <- Data[Data$yr_renovated!=0,]
 ```
 
-```{r}
-bedroomData<-Data%>%
-  group_by(bedrooms)%>%
-  summarize(Counts=n())%>%
-  mutate(Percent=Counts/nrow(Data))
-bedroomData
+# Summary Stats of Variables
 
-bathroomData<-Data%>%
-  group_by(bathrooms)%>%
-  summarize(Counts=n())%>%
-  mutate(Percent=Counts/nrow(Data))
-bathroomData
-
-floorData<-Data%>%
-  group_by(floors)%>%
-  summarize(Counts=n())%>%
-  mutate(Percent=Counts/nrow(Data))
-floorData
-
-waterfrontData<-Data%>%
-  group_by(waterfront)%>%
-  summarize(Counts=n())%>%
-  mutate(Percent=Counts/nrow(Data))
-waterfrontData
-
-viewData<-Data%>%
-  group_by(view)%>%
-  summarize(Counts=n())%>%
-  mutate(Percent=Counts/nrow(Data))
-viewData
-
-conditionData<-Data%>%
-  group_by(condition)%>%
-  summarize(Counts=n())%>%
-  mutate(Percent=Counts/nrow(Data))
-conditionData
-
-gradeData<-Data%>%
-  group_by(grade)%>%
-  summarize(Counts=n())%>%
-  mutate(Percent=Counts/nrow(Data))
-gradeData
-```
-
-```{r}
-ggplot2::ggplot(Data, aes(x=sqft_living, y=price))+
-  geom_point()+
-  geom_smooth(method = "lm", se=FALSE)+
-  labs(x="sqft living", y="price")
-
-ggplot2::ggplot(Data, aes(x=sqft_lot, y=price))+
-  geom_point()+
-  geom_smooth(method = "lm", se=FALSE)+
-  labs(x="sqft living", y="price")
-```
-
-```{r}
+```{r,echo = FALSE}
 price_mean <- dollar_format()(mean(Data$price,na.rm = TRUE))
 price_median <- dollar_format()(median(Data$price,na.rm = TRUE))
 price_min <- dollar_format()(min(Data$price))
@@ -175,6 +122,303 @@ colnames(summary_variables) <- c('Variable','Mean','Median','Minimum','Maximum')
 kable(summary_variables)
 ```
 
+```{r,echo = FALSE}
+highPrice <- Data[Data$price>mean(Data$price)+(3*sd(Data$price)),]
+lowPrice <- Data[Data$price<mean(Data$price)-(3*sd(Data$price)),]
+
+highBedrooms <- Data[Data$bedrooms>mean(Data$bedrooms)+(3*sd(Data$bedrooms)),]
+lowBedrooms <- Data[Data$bedrooms<mean(Data$bedrooms)-(3*sd(Data$bedrooms)),]
+
+highBathrooms <- Data[Data$bathrooms>mean(Data$bathrooms)+(3*sd(Data$bathrooms)),]
+lowBathrooms <- Data[Data$bathrooms<mean(Data$bathrooms)-(3*sd(Data$bathrooms)),]
+
+highSqftLiving <- Data[Data$sqft_living>mean(Data$sqft_living)+(3*sd(Data$sqft_living)),]
+lowSqftLiving <- Data[Data$sqft_living<mean(Data$sqft_living)-(3*sd(Data$sqft_living)),]
+
+highSqftLot <- Data[Data$sqft_lot>mean(Data$sqft_lot)+(3*sd(Data$sqft_lot)),]
+lowSqftLot <- Data[Data$sqft_lot<mean(Data$sqft_lot)-(3*sd(Data$sqft_lot)),]
+
+highFloors <- Data[Data$floors>mean(Data$floors)+(3*sd(Data$floors)),]
+lowFloors <- Data[Data$floors<mean(Data$floors)-(3*sd(Data$floors)),]
+
+#highView <- Data[Data$view>mean(Data$view)+(3*sd(Data$view)),]
+#lowView <- Data[Data$view<mean(Data$view)-(3*sd(Data$view)),]
+
+#highCondition <- Data[Data$condition>mean(Data$condition)+(3*sd(Data$condition)),]
+#lowCondition <- Data[Data$condition<mean(Data$condition)-(3*sd(Data$condition)),]
+
+#highGrade <- Data[Data$grade>mean(Data$grade)+(3*sd(Data$grade)),]
+#lowGrade <- Data[Data$grade<mean(Data$grade)-(3*sd(Data$grade)),]
+
+highSqftAbove <- Data[Data$sqft_above>mean(Data$sqft_above)+(3*sd(Data$sqft_above)),]
+lowSqftAbove <- Data[Data$sqft_above<mean(Data$sqft_above)-(3*sd(Data$sqft_above)),]
+
+highSqftBasement <-Data[Data$sqft_basement>mean(Data$sqft_basement)+(3*sd(Data$sqft_basement)),]
+lowSqftBasement <- Data[Data$sqft_basement<mean(Data$sqft_basement)-(3*sd(Data$sqft_basement)),]
+
+highYrBuilt <- Data[Data$yr_built>mean(Data$yr_built)+(3*sd(Data$yr_built)),]
+lowYrBuilt <- Data[Data$yr_built<mean(Data$yr_built)-(3*sd(Data$yr_built)),]
+
+variableNameOut <- c('Price','Bedrooms','Bathrooms','Sqft Living','Sqft Lot','Floors','Sqft Above','Sqft Basement','Yr Built')
+highOut <- c(nrow(highPrice),nrow(highBedrooms),nrow(highBathrooms),nrow(highSqftLiving),nrow(highSqftLot),nrow(highFloors),nrow(highSqftAbove),nrow(highSqftBasement),nrow(highYrBuilt))
+lowOut <- c(nrow(lowPrice),nrow(lowBedrooms),nrow(lowBathrooms),nrow(lowSqftLiving),nrow(lowSqftLot),nrow(lowFloors),nrow(lowSqftAbove),nrow(lowSqftBasement),nrow(lowYrBuilt))
+summary_outliers <- data.frame(variableNameOut,highOut,lowOut)
+colnames(summary_outliers) <- c('Variable','Above 3 SD','Below 3 SD')
+kable(summary_outliers)
+```
+\newpage
+
+```{r,echo = FALSE}
+ggplot2::ggplot(Data, aes(x=sqft_living, y=price))+
+  geom_point()+
+  geom_smooth(method = "lm", se=FALSE)+
+  labs(x="sqft living", y="price")
+
+ggplot2::ggplot(Data, aes(x=sqft_lot, y=price))+
+  geom_point()+
+  geom_smooth(method = "lm", se=FALSE)+
+  labs(x="sqft lot", y="price")
+```
+
+\newpage
+
+```{r,echo = FALSE,message = FALSE,warning = FALSE}
+hist_price <- ggplot(Data, aes(x=price))+
+  geom_histogram(binwidth=100000,fill="#56B4E9")+
+  labs(x="Price", y="# Houses",title="Price")+
+  scale_x_continuous(labels = scales::comma)+
+  theme(
+    plot.title = element_text(hjust =0.5),
+    legend.position = "none",
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10),
+    #axis.title.y.left = element_text(margin = margin(r = 10)),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank())
+
+hist_bedrooms <- ggplot(Data, aes(x=bedrooms))+
+  geom_histogram(binwidth=1,fill="#E69F00")+
+  labs(x="Bedrooms", y="# Houses",title="Bedrooms")+
+  scale_x_continuous(labels = scales::comma)+
+  theme(
+    plot.title = element_text(hjust =0.5),
+    legend.position = "none",
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10),
+    #axis.title.y.left = element_text(margin = margin(r = 10)),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank())
+
+hist_bathrooms <- ggplot(Data, aes(x=bathrooms))+
+  geom_histogram(binwidth=0.5,fill="#999999")+
+  labs(x="Bathrooms", y="# Houses",title="Bathrooms")+
+  scale_x_continuous(labels = scales::comma)+
+  theme(
+    plot.title = element_text(hjust =0.5),
+    legend.position = "none",
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10),
+    #axis.title.y.left = element_text(margin = margin(r = 10)),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank())
+
+hist_sqft_living <- ggplot(Data, aes(x=sqft_living))+
+  geom_histogram(binwidth=500,fill="#009E73")+
+  labs(x="Sqft Living", y="# Houses",title="Sqft Living")+
+  scale_x_continuous(labels = scales::comma)+
+  theme(
+    plot.title = element_text(hjust =0.5),
+    legend.position = "none",
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10),
+    #axis.title.y.left = element_text(margin = margin(r = 10)),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank())
+
+hist_sqft_lot <- ggplot(Data, aes(x=sqft_lot))+
+  geom_histogram(binwidth=1000,fill="#009E73") +
+  labs(x="Sqft Lot", y="# Houses",title="Sqft Lot")+
+  scale_x_continuous(labels = scales::comma)+
+  theme(
+    plot.title = element_text(hjust =0.5),
+    legend.position = "none",
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10),
+    #axis.title.y.left = element_text(margin = margin(r = 10)),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank())
+
+hist_floors <- ggplot(Data, aes(x=floors))+
+  geom_histogram(binwidth=1,fill="#0072B2")+
+  labs(x="Floors", y="# Houses",title="Floors")+
+  scale_x_continuous(labels = scales::comma)+
+  theme(
+    plot.title = element_text(hjust =0.5),
+    legend.position = "none",
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10),
+    #axis.title.y.left = element_text(margin = margin(r = 10)),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank())
+
+hist_view <- ggplot(Data, aes(x=as.numeric(view)))+
+  geom_histogram(binwidth=1,fill="#D55E00")+
+  labs(x="View", y="# Houses",title="View")+
+  theme(
+    plot.title = element_text(hjust =0.5),
+    axis.title.x = element_blank())
+
+hist_condition <- ggplot(Data, aes(x=as.numeric(condition)))+
+  geom_histogram(binwidth=1,fill="#999999")+
+  labs(x="Condition", y="# Houses",title="Condition")+
+  theme(
+    plot.title = element_text(hjust =0.5),
+    axis.title.x = element_blank())
+
+hist_grade <- ggplot(Data, aes(x=as.numeric(grade)))+
+  geom_histogram(binwidth=1,fill="#E69F00")+
+  labs(x="Grade", y="# Houses",title="Grade")+
+  theme(
+    plot.title = element_text(hjust =0.5),
+    axis.title.x = element_blank())
+
+hist_sqft_above <- ggplot(Data, aes(x=sqft_above))+
+  geom_histogram(binwidth=500,fill="#56B4E9")+
+  labs(x="Sqft Above", y="# Houses",title="Sqft Above")+
+  scale_x_continuous(labels = scales::comma)+
+  theme(
+    plot.title = element_text(hjust =0.5),
+    legend.position = "none",
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10),
+    #axis.title.y.left = element_text(margin = margin(r = 10)),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank())
+
+hist_sqft_basement <- ggplot(Data, aes(x=sqft_basement))+
+  geom_histogram(binwidth=500,fill="#009E73")+
+  labs(x="Sqft Basement", y="# Houses",title="Sqft Basement")+
+  scale_x_continuous(labels = scales::comma)+
+  theme(
+    plot.title = element_text(hjust =0.5),
+    legend.position = "none",
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10),
+    #axis.title.y.left = element_text(margin = margin(r = 10)),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank())
+
+hist_yr_built <- ggplot(Data, aes(x=yr_built))+
+  geom_histogram(binwidth=1,fill="#F0E442")+
+  labs(x="Year Built", y="# Houses",title="Year Built")+
+  #scale_x_continuous(labels = scales::comma)+
+  theme(
+    plot.title = element_text(hjust =0.5),
+    legend.position = "none",
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10),
+    #axis.title.y.left = element_text(margin = margin(r = 10)),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank())
+
+hist_zipcode <- ggplot(Data, aes(x=zipcode))+
+  geom_histogram(binwidth=1,fill="#0072B2")+
+  labs(x="Zipcode", y="# Houses",title="Zipcode")+
+  scale_x_continuous(labels = scales::comma)+
+  theme(
+    plot.title = element_text(hjust =0.5),
+    legend.position = "none",
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(size = 10),
+    axis.text.x = element_text(size = 10),
+    #axis.title.y.left = element_text(margin = margin(r = 10)),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank())
+```
+
+```{r,echo = FALSE,message = FALSE,warning = FALSE,out.height = "33%",out.width="50%"}
+layout1 <- hist_price/hist_bedrooms
+layout2 <-hist_bathrooms/hist_sqft_living
+layout3<-  hist_sqft_lot/hist_floors
+layout4 <- hist_view/hist_condition
+layout5 <- hist_grade/hist_sqft_above
+layout6 <- hist_sqft_basement/hist_yr_built
+layout1
+layout2
+layout3
+layout4
+layout5
+layout6
+```
+
+
+```{r,include = FALSE}
+bedroomData<-Data%>%
+  group_by(bedrooms)%>%
+  summarize(Counts=n())%>%
+  mutate(Percent=Counts/nrow(Data))
+bedroomData
+
+bathroomData<-Data%>%
+  group_by(bathrooms)%>%
+  summarize(Counts=n())%>%
+  mutate(Percent=Counts/nrow(Data))
+bathroomData
+
+floorData<-Data%>%
+  group_by(floors)%>%
+  summarize(Counts=n())%>%
+  mutate(Percent=Counts/nrow(Data))
+floorData
+
+waterfrontData<-Data%>%
+  group_by(waterfront)%>%
+  summarize(Counts=n())%>%
+  mutate(Percent=Counts/nrow(Data))
+waterfrontData
+
+viewData<-Data%>%
+  group_by(view)%>%
+  summarize(Counts=n())%>%
+  mutate(Percent=Counts/nrow(Data))
+viewData
+
+conditionData<-Data%>%
+  group_by(condition)%>%
+  summarize(Counts=n())%>%
+  mutate(Percent=Counts/nrow(Data))
+conditionData
+
+gradeData<-Data%>%
+  group_by(grade)%>%
+  summarize(Counts=n())%>%
+  mutate(Percent=Counts/nrow(Data))
+gradeData
+```
+
+
+```{r}
+Data[Data$price > 6000000,]
+Data[Data$bedrooms >20,]
+Data[Data$bathrooms >6,]
+Data[Data$sqft_living >8000,]
+Data[Data$sqft_lot >1500000,]
+Data[Data$floors == max(Data$floors),]
+# Data[as.numeric(Data$view) >= 5,] so many with 5 that im taking out
+Data[as.numeric(Data$grade) >11,]
+Data[as.numeric(Data$condition) <2,]
+Data[Data$sqft_basement >4000,]
+Data[Data$sqft_above >6000,]
+```
 
 
 
