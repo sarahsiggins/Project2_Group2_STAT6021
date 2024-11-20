@@ -418,6 +418,8 @@ Data[as.numeric(Data$grade) >11,]
 Data[as.numeric(Data$condition) <2,]
 Data[Data$sqft_basement >4000,]
 Data[Data$sqft_above >6000,]
+Data[Data$bedrooms==0,]
+Data[Data$bathrooms==0,]
 ```
 
 
