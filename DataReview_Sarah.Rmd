@@ -17,6 +17,12 @@ library(knitr)
 library(gridExtra)
 setwd("~/uvaMSDS/stat6021/project2/Project2_Group2_STAT6021")
 Data <- read.csv("kc_house_data.csv",header = TRUE)
+zipcodeRegion <- read.csv("zipcodeData.csv")
+Data$region <- c()
+for (i in 1:length(Data$zipcode)){
+  regionMatch <- zipcode[zipcode$x == Data$zipcode[i],]$region
+  Data$region[i]<- regionMatch 
+}
 ```
 
 ```{r,include = FALSE}
