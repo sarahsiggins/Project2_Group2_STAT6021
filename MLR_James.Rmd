@@ -1,0 +1,214 @@
+---
+title: "Project 2"
+author: "James Caldwell"
+output: pdf_document
+---
+
+```{r,echo=FALSE,results='hide', message=FALSE}
+rm(list = ls())
+library(dplyr)
+library(MASS)
+library(ggplot2)
+library(MASS) ##to use boxcox function
+library(GGally)
+library(faraway)
+# ctrl alt i is shortcut for adding a new r chunk
+# Shortcut is Ctrl + Shift + M for %>% symbols
+
+```
+
+```{r}
+# Import Data
+Data <- read.csv("kc_house_data.csv",header = TRUE)
+zipcode <- read.csv("zipcodeData.csv")
+# Add new variable, Region (based on zip code
+Data$region <- c()
+for (i in 1:length(Data$zipcode)){
+  regionMatch <- zipcode[zipcode$x == Data$zipcode[i],]$region
+  Data$region[i]<- regionMatch 
+}
+# Remove errors as discussed in section 3
+cleanData <- Data[(Data$bedrooms!=0),]
+cleanData <- cleanData[(cleanData$bathrooms!=0),]
+cleanData <- cleanData[(cleanData$bedrooms<30),]
+cleanData <- cleanData[ , -which(names(cleanData) %in% c("date","sqft_above","sqft_basement","zipcode","lat","long"))]
+
+set.seed(6021)
+sample.data<-sample.int(nrow(cleanData), floor(.50*nrow(Data)), replace = F)
+train<-cleanData[sample.data, ]
+test<-cleanData[-sample.data, ]
+
+# Add training/test data
+
+regnull <- lm(price~1, data=train) # Intercept only model
+regfull <- lm(price~., data=train) # Model with all predictors
+
+MLR_forward <- step(regnull, scope=list(lower=regnull, upper=regfull), direction="forward")
+
+```
+
+```{r}
+# Extract AIC values
+aic_values <- MLR_forward$anova$AIC
+# Create a data frame for ggplot
+aic_data <- data.frame(Step = seq_along(aic_values),AIC = aic_values)
+
+ggplot(aic_data, aes(x = Step, y = AIC)) +
+  geom_line(color = "blue", size = 1) +      # Line connecting points
+  geom_point(color = "blue", size = 2) +     # Points
+  labs(
+    title = "AIC at Each Step of Forward Selection",
+    x = "Step",
+    y = "AIC" ) +
+  geom_vline(xintercept = 6) +
+  geom_hline(yintercept = 265000)
+```
+(before using Sarah's region)
+Step 6: 
+price ~ sqft_living + lat + view + grade + yr_built
+
+
+with zip code regions:
+price ~ sqft_living + region + waterfront + grade + yr_built
+
+Check residual plots:
+```{r}
+result<-lm(price ~ sqft_living + region + waterfront + grade + yr_built, data=train)
+par(mfrow = c(2, 2))
+plot(result)
+```
+```{r}
+MASS::boxcox(result)
+```
+
+
+```{r}
+##transform y 
+ystar<-log(train$price)
+train<-data.frame(train,ystar)
+
+result2<-lm(ystar ~ sqft_living + region + waterfront + grade + yr_built, data=train)
+par(mfrow = c(2, 2))
+plot(result2)
+```
+Investigating high leverage points:
+```{r}
+hii<-lm.influence(result2)$hat ##leverages
+ext.student<-rstudent(result2) ##ext studentized res
+n<-nrow(cleanData)
+p<-5
+
+length(hii[hii>2*p/n])
+
+```
+~6000 data points out of 22000 are considered high leverage.
+
+Outliers:
+```{r}
+length(ext.student[abs(ext.student)>3])
+```
+89 data points could be considered outliers.
+
+Influential observations:
+```{r}
+DFFITS<-dffits(result)
+length(DFFITS[abs(DFFITS)>2*sqrt(p/n)])
+```
+Using the DEFITS method, there are ~1200 data points that could be influential. 
+
+
+The final model is:
+```{r}
+print(result2$coefficients)
+```
+
+Make a model with all the predictors and bad predictors to compare with our model:
+```{r}
+model_full<-lm(ystar ~ sqft_living + region + waterfront + grade + yr_built + 
+    view + bedrooms + bathrooms + condition + sqft_lot15 + sqft_living15 + 
+    id + floors + sqft_lot, data=train)
+model_bad<-lm(ystar ~ floors + sqft_lot, data=train)
+
+test$log_price_predictions_full = predict(model_full,newdata = test)
+test$price_predictions_full = exp(test$log_price_predictions_full)
+
+test$log_price_predictions_bad = predict(model_bad,newdata = test)
+test$price_predictions_bad = exp(test$log_price_predictions_bad)
+```
+
+
+
+## Prediction on test data and evaluation of model accuracy
+
+```{r}
+test$log_price_predictions = predict(result2,newdata = test)
+test$price_predictions = exp(test$log_price_predictions)
+
+test$log_price_predictions_bad = predict(model_bad,newdata = test)
+test$price_predictions_bad = exp(test$log_price_predictions_bad)
+
+test$log_price_predictions_full = predict(model_full,newdata = test)
+test$price_predictions_full = exp(test$log_price_predictions_full)
+
+# Print the first 25 rows
+test_price_only <- test %>%
+  dplyr::select(price, price_predictions,sqft_living,grade,yr_built)
+
+head(test_price_only,25)
+
+library(tidyr)
+
+# Create a long format dataframe with a combined price and price predictions, with 
+  # "Type" as a new column denoting which one each entry is. This way, we can plot
+  # The two on the same plot to visualize how the model is predicting vs the actuals
+test_long <- test %>%
+  pivot_longer(cols = c(price, price_predictions,price_predictions_bad,price_predictions_full),
+               names_to = "type",
+               values_to = "predicted_and_actual")
+
+# Create the plot
+ggplot(test_long, aes(x = sqft_living, y = predicted_and_actual, color = type)) +
+  geom_point(size = 1, alpha = 1) +
+  labs(title = "Actual vs Predicted Prices",
+       x = "Square Footage",
+       y = "Price") +
+      xlim(0, 8000) +  # Set x-axis limits
+      ylim(0, 7000000)   # Set y-axis limits
+
+# This plot skips displaying one datapoint, which is the very expensive house of 1.25M Sqft. Zooming in beyond this point helps see the smaller details better.
+```
+RMSE
+```{r}
+library(Metrics)
+
+# Calculate RMSE
+rmse_small <- rmse(test$price, test$price_predictions)
+cat('Ideal model:',rmse_small)
+rmse_bad <- rmse(test$price, test$price_predictions_bad)
+cat('\nBad model:',rmse_bad)
+rmse_full <- rmse(test$price, test$price_predictions_full)
+cat('\nfull model:',rmse_full)
+```
+
+```{r}
+test$residual_percent <- (abs(test$price-test$price_predictions_full)/test$price) * 100
+
+ggplot(test, aes(x = price, y =residual_percent)) +
+  geom_point() +
+  labs(title = "Percent Accuracy of predicted vs actual",
+       x = "Price",
+       y = "Percent Accuracy")
+
+summary(test$residual_percent)
+```
+```{r}
+# test_filtered <- test %>%
+#   filter(price > 300000) %>%
+#   mutate(residual_percent_filtered = residual_percent)
+# 
+# ggplot(test_filtered, aes(x = price, y =residual)) +
+#   geom_point()
+# 
+# summary(test_filtered$residual_percent)
+```
+
