@@ -17,12 +17,16 @@ library(knitr)
 library(gridExtra)
 setwd("~/uvaMSDS/stat6021/project2/Project2_Group2_STAT6021")
 Data <- read.csv("kc_house_data.csv",header = TRUE)
-zipcodeRegion <- read.csv("zipcodeData.csv")
+zipcode <- read.csv("zipcodeData.csv")
 Data$region <- c()
 for (i in 1:length(Data$zipcode)){
   regionMatch <- zipcode[zipcode$x == Data$zipcode[i],]$region
   Data$region[i]<- regionMatch 
 }
+cleanData <- Data[(Data$bedrooms!=0),]
+cleanData <- cleanData[(cleanData$bathrooms!=0),]
+cleanData <- cleanData[(cleanData$bedrooms<30),]
+cleanData <- cleanData[ , -which(names(cleanData) %in% c("date","sqft_above","sqft_basement","zipcode","lat","long"))]
 ```
 
 ```{r,include = FALSE}
@@ -427,6 +431,5 @@ Data[Data$sqft_above >6000,]
 Data[Data$bedrooms==0,]
 Data[Data$bathrooms==0,]
 ```
-
 
 
