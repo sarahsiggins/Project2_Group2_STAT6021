@@ -1,0 +1,141 @@
+---
+title: "Project2_Section7"
+author: "Margaret Lindsay"
+date: "2024-11-30"
+output: html_document
+---
+
+## Loading Data/Packages
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+
+Data <- read.csv("kc_house_data.csv",header = TRUE)
+zipcode <- read.csv("zipcodeData.csv")
+```
+
+## Adding region predictor
+
+```{r}
+Data$region <- c()
+for (i in 1:length(Data$zipcode)){
+  regionMatch <- zipcode[zipcode$x == Data$zipcode[i],]$region
+  Data$region[i]<- regionMatch 
+}
+```
+
+## Adding Binary Variable for Good Quality Homes (Condition > 3 & Grade > 7)
+
+```{r}
+Data <- Data %>% 
+  mutate(goodQuality = ifelse(condition > 3 & grade > 7, "Yes", "No"))
+
+Data$goodQuality <- factor(Data$goodQuality)
+```
+
+## Factoring Categorical Variables (?)
+
+```{r}
+Data$waterfront <- factor(Data$waterfront)
+```
+
+## Removing errors identified in section 3
+
+```{r}
+cleanData <- Data[(Data$bedrooms!=0),]
+cleanData <- cleanData[(cleanData$bathrooms!=0),]
+cleanData <- cleanData[(cleanData$bedrooms<30),]
+cleanData <- cleanData[ , -which(names(cleanData) %in% c("date","sqft_above","sqft_basement","zipcode","lat","long"))]
+```
+
+## Split for Training/Test Data
+
+```{r}
+set.seed(6021)
+sample.data<-sample.int(nrow(cleanData), floor(.50*nrow(cleanData)), replace = F)
+train<-cleanData[sample.data, ]
+test<-cleanData[-sample.data, ]
+```
+
+## Unbalanced?
+
+Does not appear overly unbalanced
+```{r}
+table(train$goodQuality)
+```
+
+## Fit Logistic Regression
+
+```{r}
+result<-glm(goodQuality ~ price + bedrooms + bathrooms + sqft_living + sqft_lot + floors + waterfront + view + condition + 
+              grade + yr_built + yr_renovated + sqft_living15 + sqft_lot15 + region, family=binomial, data=train)
+summary(result)
+```
+
+## Check for multicolinearity
+
+Lots of evidence for multicolinearity (VIFs > 5)
+```{r}
+library(faraway) 
+faraway::vif(result)
+```
+
+## Reduced model
+
+H0: coefficients for all dropped predictors = 0
+Ha: at least one coefficient is not 0
+
+Dropped: bathrooms, sqft_lot, waterfront, yr_renovated, sqft_lot15 (5) since not significant?
+
+Since p-value is greater than 0.05, we cannot reject the null and therefore we can use the reduced model.
+```{r}
+reduced <- glm(goodQuality ~ price + bedrooms + sqft_living + floors + view + condition + grade + yr_built + sqft_living15 + region, family=binomial, data=train)
+summary(reduced)
+
+faraway::vif(reduced) #still evidence of multicolinearity?
+
+test.stat <- reduced$deviance - result$deviance
+p.val <- 1 - pchisq(test.stat, 5)
+p.val
+```
+
+## Confusion Matrix
+
+```{r}
+##predicted probs for test data
+preds <- predict(reduced, newdata=test, type="response")
+
+##confusion matrix with threshold of 0.5
+table(test$goodQuality, preds>0.5)
+```
+```{r}
+error_rate <- (494+729)/nrow(test)
+accuracy <- (8980+595)/nrow(test)
+FPR <- 494/(8980+494)
+FNR <- 729/(729+595)
+TPR <- 595/(595+729)
+TNR <- 8980/(8980+494)
+precision <- 595/(595+494)
+```
+
+## ROC Curve
+
+Looks pretty good--"The further the curve is from the diagonal and closer to the top left of the plot, the better the model is in classifying observations correctly."
+```{r}
+library(ROCR)
+rates <- ROCR::prediction(preds, test$goodQuality)
+roc_result <- ROCR::performance(rates,measure="tpr", x.measure="fpr")
+plot(roc_result, main="ROC Curve for Reduced Model")
+lines(x = c(0,1), y = c(0,1), col="red")
+```
+
+## AUC
+
+"An AUC closer to 1 indicates the model does better than random guessing in classifying observations."
+```{r}
+auc <- ROCR::performance(rates, measure = "auc") 
+auc@y.values
+```
+
+
