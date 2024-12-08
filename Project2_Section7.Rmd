@@ -5,36 +5,30 @@ date: "2024-11-30"
 output: html_document
 ---
 
-## Loading Data/Packages
 
 ```{r}
+## Loading Data/Packages
 library(tidyverse)
 library(ggplot2)
 
 Data <- read.csv("kc_house_data.csv",header = TRUE)
 zipcode <- read.csv("zipcodeData.csv")
-```
 
 ## Adding region predictor
-
-```{r}
 Data$region <- c()
 for (i in 1:length(Data$zipcode)){
   regionMatch <- zipcode[zipcode$x == Data$zipcode[i],]$region
   Data$region[i]<- regionMatch 
 }
-```
 
 ## Adding Binary Variable for Good Quality Homes (Condition > 3 & Grade > 7)
-
-```{r}
 Data <- Data %>% 
   mutate(goodQuality = ifelse(condition > 3 & grade > 7, "Yes", "No"))
 
 Data$goodQuality <- factor(Data$goodQuality)
 ```
 
-## Factoring Categorical Variables (?)
+## Factoring Categorical Variables
 
 ```{r}
 Data$waterfront <- factor(Data$waterfront)
@@ -60,9 +54,9 @@ test<-cleanData[-sample.data, ]
 
 ## Unbalanced?
 
-Does not appear overly unbalanced
+Unbalanced toward No?
 ```{r}
-table(train$goodQuality)
+table(cleanData$goodQuality)
 ```
 
 ## Fit Logistic Regression
@@ -99,24 +93,25 @@ test.stat <- reduced$deviance - result$deviance
 p.val <- 1 - pchisq(test.stat, 5)
 p.val
 ```
+# Keep sqft_lot??
 
 ## Confusion Matrix
-
+Data is unbalanced. Using a threshold of 0.5, the FNR was 0.551, so we lowered the threshold.
 ```{r}
 ##predicted probs for test data
 preds <- predict(reduced, newdata=test, type="response")
 
-##confusion matrix with threshold of 0.5
-table(test$goodQuality, preds>0.5)
+##confusion matrix with threshold of 0.2
+table(test$goodQuality, preds>0.2)
 ```
 ```{r}
-error_rate <- (494+729)/nrow(test)
-accuracy <- (8980+595)/nrow(test)
-FPR <- 494/(8980+494)
-FNR <- 729/(729+595)
-TPR <- 595/(595+729)
-TNR <- 8980/(8980+494)
-precision <- 595/(595+494)
+error_rate <- (899+169)/nrow(test)
+accuracy <- (8575+1155)/nrow(test)
+FPR <- 899/(8575+899)
+FNR <- 169/(169+1155)
+TPR <- 1155/(1155+169)
+TNR <- 8575/(8575+899)
+precision <- 1155/(1155+899)
 ```
 
 ## ROC Curve
