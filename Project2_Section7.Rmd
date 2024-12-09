@@ -62,8 +62,7 @@ table(cleanData$goodQuality)
 ## Fit Logistic Regression
 
 ```{r}
-result<-glm(goodQuality ~ price + bedrooms + bathrooms + sqft_living + sqft_lot + floors + waterfront + view + condition + 
-              grade + yr_built + yr_renovated + sqft_living15 + sqft_lot15 + region, family=binomial, data=train)
+result<-glm(goodQuality ~ price + bedrooms + bathrooms + sqft_living + sqft_lot + floors + waterfront + view + yr_built + yr_renovated + sqft_living15 + sqft_lot15 + region, family=binomial, data=train)
 summary(result)
 ```
 
@@ -80,38 +79,29 @@ faraway::vif(result)
 H0: coefficients for all dropped predictors = 0
 Ha: at least one coefficient is not 0
 
-Dropped: bathrooms, sqft_lot, waterfront, yr_renovated, sqft_lot15 (5) since not significant?
+Dropped: sqft_living, sqft_lot, waterfront, sqft_lot15 (4) since not significant
 
 Since p-value is greater than 0.05, we cannot reject the null and therefore we can use the reduced model.
 ```{r}
-reduced <- glm(goodQuality ~ price + bedrooms + sqft_living + floors + view + condition + grade + yr_built + sqft_living15 + region, family=binomial, data=train)
+reduced <- glm(goodQuality ~ price + bedrooms + bathrooms + floors + view + yr_built + yr_renovated + sqft_living15 + region, family=binomial, data=train)
 summary(reduced)
 
-faraway::vif(reduced) #still evidence of multicolinearity?
+faraway::vif(reduced)
 
 test.stat <- reduced$deviance - result$deviance
-p.val <- 1 - pchisq(test.stat, 5)
+p.val <- 1 - pchisq(test.stat, 4)
 p.val
 ```
 # Keep sqft_lot??
 
 ## Confusion Matrix
-Data is unbalanced. Using a threshold of 0.5, the FNR was 0.551, so we lowered the threshold.
+Data is unbalanced. Using a threshold of 0.5, the FNR was high, so we lowered the threshold.
 ```{r}
 ##predicted probs for test data
 preds <- predict(reduced, newdata=test, type="response")
 
 ##confusion matrix with threshold of 0.2
-table(test$goodQuality, preds>0.2)
-```
-```{r}
-error_rate <- (899+169)/nrow(test)
-accuracy <- (8575+1155)/nrow(test)
-FPR <- 899/(8575+899)
-FNR <- 169/(169+1155)
-TPR <- 1155/(1155+169)
-TNR <- 8575/(8575+899)
-precision <- 1155/(1155+899)
+table(test$goodQuality, preds>0.15)
 ```
 
 ## ROC Curve
