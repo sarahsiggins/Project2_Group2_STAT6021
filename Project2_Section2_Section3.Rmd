@@ -1,0 +1,178 @@
+---
+title: "Project2_Section2_Section3"
+author: "Sarah Christen"
+date: "2024-11-18"
+output: pdf_document
+---
+
+```{r,include = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(GGally)
+library(scales)
+library(patchwork)
+library(gapminder)
+library(scales)
+library(knitr)
+library(gridExtra)
+#setwd("~/uvaMSDS/stat6021/project2/Project2_Group2_STAT6021")
+Data <- read.csv("kc_house_data.csv",header = TRUE)
+zipcode <- read.csv("zipcodeData.csv")
+Data$region <- c()
+for (i in 1:length(Data$zipcode)){
+  regionMatch <- zipcode[zipcode$x == Data$zipcode[i],]$region
+  Data$region[i]<- regionMatch 
+}
+cleanData <- Data[(Data$bedrooms!=0),]
+cleanData <- cleanData[(cleanData$bathrooms!=0),]
+cleanData <- cleanData[(cleanData$bedrooms<30),]
+cleanData <- cleanData[ , -which(names(cleanData) %in% c("date","sqft_above","sqft_basement","zipcode","lat","long"))]
+```
+
+```{r,include = FALSE}
+which(is.na(Data)) # no N/As in Data
+colnames(Data)
+
+Data$waterfront <- factor(Data$waterfront)
+Data$view <- factor(Data$view)
+Data$condition <- factor(Data$condition)
+Data$grade <- factor(Data$grade)
+
+houseSales <- nrow(Data)
+houses <- length(unique(Data$id))
+duplicate_house_id <- Data |>
+  group_by(id) |>
+  filter(n() > 1) |>
+  ungroup()
+
+renovated <- Data[Data$yr_renovated!=0,]
+```
+
+# Summary Stats of Variables
+
+```{r,echo = FALSE}
+price_mean <- dollar_format()(mean(Data$price,na.rm = TRUE))
+price_median <- dollar_format()(median(Data$price,na.rm = TRUE))
+price_min <- dollar_format()(min(Data$price))
+price_max <- dollar_format()(max(Data$price))
+
+bedrooms_mean <- round(mean(Data$bedrooms,na.rm = TRUE),2)
+bedrooms_median <- round(median(Data$bedrooms,na.rm = TRUE),2)
+bedrooms_min <- round(min(Data$bedrooms),2)
+bedrooms_max <- round(max(Data$bedrooms),2)
+
+bathrooms_mean <- round(mean(Data$bathrooms,na.rm = TRUE),2)
+bathrooms_median <- round(median(Data$bathrooms,na.rm = TRUE),2)
+bathrooms_min <- round(min(Data$bathrooms),2)
+bathrooms_max <- round(max(Data$bathrooms),2)
+
+sqftliving_mean <- round(mean(Data$sqft_living,na.rm = TRUE),2)
+sqftliving_median <- round(median(Data$sqft_living,na.rm = TRUE),2)
+sqftliving_min <- round(min(Data$sqft_living),2)
+sqftliving_max <- round(max(Data$sqft_living),2)
+
+sqftlot_mean <- round(mean(Data$sqft_lot,na.rm = TRUE),2)
+sqftlot_median <- round(median(Data$sqft_lot,na.rm = TRUE),2)
+sqftlot_min <- round(min(Data$sqft_lot),2)
+sqftlot_max <- round(max(Data$sqft_lot),2)
+
+floors_mean <- round(mean(Data$floors,na.rm = TRUE),2)
+floors_median <- round(median(Data$floors,na.rm = TRUE),2)
+floors_min <- round(min(Data$floors),2)
+floors_max <- round(max(Data$floors),2)
+
+view_mean <- round(mean(as.numeric(Data$view),na.rm = TRUE),2)
+view_median <- round(median(as.numeric(Data$view),na.rm = TRUE),2)
+view_min <- round(min(as.numeric(Data$view)),2)
+view_max <- round(max(as.numeric(Data$view)),2)
+
+condition_mean <- round(mean(as.numeric(Data$condition),na.rm = TRUE),2)
+condition_median <- round(median(as.numeric(Data$condition),na.rm = TRUE),2)
+condition_min <- round(min(as.numeric(Data$condition)),2)
+condition_max <- round(max(as.numeric(Data$condition)),2)
+
+grade_mean <- round(mean(as.numeric(Data$grade),na.rm = TRUE),2)
+grade_median <- round(median(as.numeric(Data$grade),na.rm = TRUE),2)
+grade_min <- round(min(as.numeric(Data$grade)),2)
+grade_max <- round(max(as.numeric(Data$grade)),2)
+
+sqftabove_mean <- round(mean(Data$sqft_above,na.rm = TRUE),2)
+sqftabove_median <- round(median(Data$sqft_above,na.rm = TRUE),2)
+sqftabove_min <- round(min(Data$sqft_above),2)
+sqftabove_max <- round(max(Data$sqft_above),2)
+
+sqftbasement_mean <- round(mean(Data$sqft_basement,na.rm = TRUE),2)
+sqftbasement_median <- round(median(Data$sqft_basement,na.rm = TRUE),2)
+sqftbasement_min <- round(min(Data$sqft_basement),2)
+sqftbasement_max <- round(max(Data$sqft_basement),2)
+
+yrbuilt_mean <- round(mean(Data$yr_built,na.rm = TRUE),2)
+yrbuilt_median <- round(median(Data$yr_built,na.rm = TRUE),2)
+yrbuilt_min <- round(min(Data$yr_built),2)
+yrbuilt_max <- round(max(Data$yr_built),2)
+
+sqftliving15_mean <- round(mean(Data$sqft_living15,na.rm = TRUE),2)
+sqftliving15_median <- round(median(Data$sqft_living15,na.rm = TRUE),2)
+sqftliving15_min <- round(min(Data$sqft_living15),2)
+sqftliving15_max <- round(max(Data$sqft_living15),2)
+
+sqftlot15_mean <- round(mean(Data$sqft_lot15,na.rm = TRUE),2)
+sqftlot15_median <- round(median(Data$sqft_lot15,na.rm = TRUE),2)
+sqftlot15_min <- round(min(Data$sqft_lot15),2)
+sqftlot15_max <- round(max(Data$sqft_lot15),2)
+
+variableNames <- c('Price','Bedrooms','Bathrooms','Sqft Living','Sqft Lot','Floors','View','Condition','Grade','Sqft Above','Sqft Basement','Yr Built','Sqft Living 15','Sqft Lot 15')
+varMean <- c(price_mean,bedrooms_mean,bathrooms_mean,sqftliving_mean,sqftlot_mean,floors_mean,view_mean,condition_mean,grade_mean,sqftabove_mean,sqftbasement_mean,yrbuilt_mean,sqftliving15_mean,sqftlot15_mean)
+varMedian <- c(price_median,bedrooms_median,bathrooms_median,sqftliving_median,sqftlot_median,floors_median,view_median,condition_median,grade_median,sqftabove_median,sqftbasement_median,yrbuilt_median,sqftliving15_median,sqftlot15_median)
+varMin <- c(price_min,bedrooms_min,bathrooms_min,sqftliving_min,sqftlot_min,floors_min,view_min,condition_min,grade_min,sqftabove_min,sqftbasement_min,yrbuilt_min,sqftliving15_min,sqftlot15_min)
+varMax <- c(price_max,bedrooms_max,bathrooms_max,sqftliving_max,sqftlot_max,floors_max,view_max,condition_max,grade_max,sqftabove_max,sqftbasement_max,yrbuilt_max,sqftliving15_max,sqftlot15_max)
+summary_variables <- data.frame(variableNames,varMean,varMedian,varMin,varMax)
+colnames(summary_variables) <- c('Variable','Mean','Median','Minimum','Maximum')
+
+kable(summary_variables)
+```
+
+```{r,echo = FALSE}
+highPrice <- Data[Data$price>mean(Data$price)+(3*sd(Data$price)),]
+lowPrice <- Data[Data$price<mean(Data$price)-(3*sd(Data$price)),]
+
+highBedrooms <- Data[Data$bedrooms>mean(Data$bedrooms)+(3*sd(Data$bedrooms)),]
+lowBedrooms <- Data[Data$bedrooms<mean(Data$bedrooms)-(3*sd(Data$bedrooms)),]
+
+highBathrooms <- Data[Data$bathrooms>mean(Data$bathrooms)+(3*sd(Data$bathrooms)),]
+lowBathrooms <- Data[Data$bathrooms<mean(Data$bathrooms)-(3*sd(Data$bathrooms)),]
+
+highSqftLiving <- Data[Data$sqft_living>mean(Data$sqft_living)+(3*sd(Data$sqft_living)),]
+lowSqftLiving <- Data[Data$sqft_living<mean(Data$sqft_living)-(3*sd(Data$sqft_living)),]
+
+highSqftLot <- Data[Data$sqft_lot>mean(Data$sqft_lot)+(3*sd(Data$sqft_lot)),]
+lowSqftLot <- Data[Data$sqft_lot<mean(Data$sqft_lot)-(3*sd(Data$sqft_lot)),]
+
+highFloors <- Data[Data$floors>mean(Data$floors)+(3*sd(Data$floors)),]
+lowFloors <- Data[Data$floors<mean(Data$floors)-(3*sd(Data$floors)),]
+
+#highView <- Data[Data$view>mean(Data$view)+(3*sd(Data$view)),]
+#lowView <- Data[Data$view<mean(Data$view)-(3*sd(Data$view)),]
+
+#highCondition <- Data[Data$condition>mean(Data$condition)+(3*sd(Data$condition)),]
+#lowCondition <- Data[Data$condition<mean(Data$condition)-(3*sd(Data$condition)),]
+
+#highGrade <- Data[Data$grade>mean(Data$grade)+(3*sd(Data$grade)),]
+#lowGrade <- Data[Data$grade<mean(Data$grade)-(3*sd(Data$grade)),]
+
+highSqftAbove <- Data[Data$sqft_above>mean(Data$sqft_above)+(3*sd(Data$sqft_above)),]
+lowSqftAbove <- Data[Data$sqft_above<mean(Data$sqft_above)-(3*sd(Data$sqft_above)),]
+
+highSqftBasement <-Data[Data$sqft_basement>mean(Data$sqft_basement)+(3*sd(Data$sqft_basement)),]
+lowSqftBasement <- Data[Data$sqft_basement<mean(Data$sqft_basement)-(3*sd(Data$sqft_basement)),]
+
+highYrBuilt <- Data[Data$yr_built>mean(Data$yr_built)+(3*sd(Data$yr_built)),]
+lowYrBuilt <- Data[Data$yr_built<mean(Data$yr_built)-(3*sd(Data$yr_built)),]
+
+variableNameOut <- c('Price','Bedrooms','Bathrooms','Sqft Living','Sqft Lot','Floors','Sqft Above','Sqft Basement','Yr Built')
+highOut <- c(nrow(highPrice),nrow(highBedrooms),nrow(highBathrooms),nrow(highSqftLiving),nrow(highSqftLot),nrow(highFloors),nrow(highSqftAbove),nrow(highSqftBasement),nrow(highYrBuilt))
+lowOut <- c(nrow(lowPrice),nrow(lowBedrooms),nrow(lowBathrooms),nrow(lowSqftLiving),nrow(lowSqftLot),nrow(lowFloors),nrow(lowSqftAbove),nrow(lowSqftBasement),nrow(lowYrBuilt))
+summary_outliers <- data.frame(variableNameOut,highOut,lowOut)
+colnames(summary_outliers) <- c('Variable','Above 3 SD','Below 3 SD')
+kable(summary_outliers)
+```
