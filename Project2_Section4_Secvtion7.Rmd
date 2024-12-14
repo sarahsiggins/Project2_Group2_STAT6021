@@ -1,0 +1,306 @@
+---
+title: "Project2_Sections4_7"
+author: "Margaret Lindsay"
+date: "2024-11-30"
+output: html_document
+---
+# Loading and cleaning data
+
+```{r}
+## Loading Data/Packages
+library(tidyverse)
+library(ggplot2)
+
+Data <- read.csv("kc_house_data.csv",header = TRUE)
+zipcode <- read.csv("zipcodeData.csv")
+
+## Adding region predictor
+Data$region <- c()
+for (i in 1:length(Data$zipcode)){
+  regionMatch <- zipcode[zipcode$x == Data$zipcode[i],]$region
+  Data$region[i]<- regionMatch 
+}
+
+## Adding Binary Variable for Good Quality Homes (Condition > 3 & Grade > 7)
+Data <- Data %>% 
+  mutate(goodQuality = ifelse(condition > 3 & grade > 7, "Yes", "No"))
+
+## Adding Variables for Grade Categories
+Data <- Data %>% 
+  mutate(grade.cat=case_when(grade <= 3 ~ "low",
+    grade >3 & grade <=6 ~ "medium low", grade == 7 ~ "average", grade > 7 & grade < 11 ~ "medium high", grade >= 11 ~ "high"))
+
+Data$grade.cat<-factor(Data$grade.cat, levels=c("low","medium low","average","medium high", "high"))
+
+Data$goodQuality <- factor(Data$goodQuality)
+
+## Factoring Categorical Variables
+Data$waterfront <- factor(Data$waterfront)
+
+## Removing errors identified in section 3
+cleanData <- Data[(Data$bedrooms!=0),]
+cleanData <- cleanData[(cleanData$bathrooms!=0),]
+cleanData <- cleanData[(cleanData$bedrooms<30),]
+cleanData <- cleanData[ , -which(names(cleanData) %in% c("date","sqft_above","sqft_basement","zipcode","lat","long"))]
+
+## Split for Training/Test Data
+
+set.seed(6021)
+sample.data<-sample.int(nrow(cleanData), floor(.50*nrow(cleanData)), replace = F)
+train<-cleanData[sample.data, ]
+test<-cleanData[-sample.data, ]
+
+## Unbalanced? -- Yes, unbalanced toward No
+table(cleanData$goodQuality)
+```
+
+
+# SECTION 4
+
+## Univariate Visualizations
+```{r}
+summary(train$price)
+
+ggplot(train, aes(y=price))+
+  geom_boxplot()+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(labels = scales::comma)+
+  labs(y="Price ($)\n", title="Box Plot of Selling Price")
+```
+
+```{r}
+ggplot(train,aes(x=price)) + 
+  geom_density()+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_x_continuous(labels = scales::comma)+
+  labs(x="Price ($)", y="Density", title="Density Plot of Selling Price")
+```
+
+```{r}
+ggplot(train,aes(x=price))+
+  geom_histogram(binwidth = 10000, color='navy')+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_x_continuous(labels = scales::comma)+
+  labs(x="Price ($)", y="Count", title="Histogram of Selling Price")
+```
+
+```{r}
+train.under2M <- train %>% 
+  filter(price < 2000000) %>% 
+  arrange(-price)
+
+ggplot(train.under2M,aes(x=price))+
+  geom_histogram(binwidth = 10000, color='navy')+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_x_continuous(labels = scales::comma)+
+  labs(x="Price ($)", y="Count", title="Histogram of Selling Price")
+```
+
+```{r}
+ggplot(train,aes(x=yr_built)) + 
+  geom_density()+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Year Built", y="Density", title="Density Plot of House Counstruction Year")
+```
+
+```{r}
+ggplot(train,aes(x=yr_built))+
+  geom_histogram(binwidth = 10, color='white')+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Year Built", y="Count", title="Histogram of House Counstruction Year")
+```
+
+```{r}
+ggplot(train,aes(x=bedrooms))+
+  geom_histogram(binwidth=1, color='white')+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Number of Bedrooms", y="Count", title="Histogram of Number of Bedrooms")+
+  stat_count(binwidth = 1, 
+             geom = 'text', 
+             color = 'white', 
+             aes(label = after_stat(count)),
+            position = position_stack(vjust = 0.5))
+```
+
+## Bivariate Visuaizations
+```{r}
+ggplot(train, aes(x=bedrooms, y=price))+
+  geom_point()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Number of Bedrooms", y="Price ($)\n", title="Selling Price Against Number of Bedrooms")
+```
+
+```{r}
+ggplot(train, aes(x=bathrooms, y=price))+
+  geom_point()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Number of Bathrooms", y="Price ($)\n", title="Selling Price Against Number of Bathrooms")
+```
+
+```{r}
+ggplot(train, aes(x=sqft_living, y=price))+
+  geom_point()+
+  scale_y_continuous(labels = scales::comma)+
+  scale_x_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Interior Square Footage", y="Price ($)\n", title="Selling Price Against Interior Square Footage")
+
+Data %>% 
+  arrange(-sqft_living)
+```
+
+```{r}
+ggplot(train, aes(x=grade, y=price))+
+  geom_point()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Grade", y="Price ($)\n", title="Home Selling Price Against Grade")
+```
+
+```{r}
+ggplot(train, aes(x=waterfront, y=price))+
+  geom_boxplot()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Waterfront Status", y="Price ($)\n", title="Home Selling Price Against Waterfront Status")
+```
+```{r}
+ggplot(train, aes(x=factor(train$view), y=price))+
+  geom_boxplot()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="View Ranking", y="Price ($)\n", title="Home Selling Price Against View Ranking")
+```
+
+
+```{r}
+ggplot(train, aes(x=grade.cat, y=price))+
+  geom_boxplot()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Grade Category", y="Price ($)\n", title="Home Selling Price Against Grade")
+```
+
+
+```{r}
+ggplot(train, aes(x=condition, y=price))+
+  geom_point()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Condition", y="Price ($)\n", title="Home Selling Price Against Home Condition")
+```
+
+
+```{r}
+tapply(train$price,train$condition,median)
+```
+
+## Multivariate Visualizations
+```{r}
+train <- train %>% 
+  mutate(ouMedian = ifelse(price>median(price),"Over Median","Under Median"))
+  
+ggplot(train,aes(x=yr_built, color=ouMedian)) + 
+  geom_density()+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Year Built", y="Density", title="Density Plot of House Counstruction Year", color="Relation to Median Sale Price")
+```
+```{r}
+ggplot(train, aes(x=bedrooms, y=price, color=grade))+
+  geom_point()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Number of Bedrooms", y="Price ($)\n", color="Grade", title="Home Selling Price Against Number of Bedrooms by Grade")
+```
+
+```{r}
+ggplot(train, aes(x=sqft_lot, y=price, color=grade))+
+  geom_point()+
+  scale_y_continuous(labels = scales::comma)+
+  scale_x_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Lot Square Footage", y="Price ($)\n", color="Grade", title="Home Selling Price Against Lot Sqaure Footage by Grade")
+```
+
+```{r}
+ggplot(train, aes(x=bedrooms, y=price, color=condition))+
+  geom_point(alpha=0.5)+
+  scale_y_continuous(labels = scales::comma)+
+  scale_x_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Number of Bedrooms", y="Price ($)\n", color="Condition", title="Home Selling Price Against Number of Bedrooms by Condition")
+```
+
+```{r}
+ggplot(train, aes(x=sqft_living, y=price, fill=bedrooms, size=condition))+
+  geom_point(shape=21,alpha=0.5)+
+  scale_y_continuous(labels = scales::comma)+
+  scale_x_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Interior Square Footage", y="Price ($)\n", color="Bedrooms", title="Selling Price Against Number of Bedrooms by Condition")
+```
+
+
+#SECTION 7
+
+
+## Fit Logistic Regression
+```{r}
+result<-glm(goodQuality ~ price + bedrooms + bathrooms + sqft_living + sqft_lot + floors + waterfront + view + yr_built + yr_renovated + sqft_living15 + sqft_lot15 + region, family=binomial, data=train)
+summary(result)
+
+## Check for multicolinearity-- evidence for multicolinearity (VIFs > 5)
+library(faraway) 
+faraway::vif(result)
+```
+
+## Reduced model
+
+H0: coefficients for all dropped predictors = 0
+Ha: at least one coefficient is not 0
+
+Dropped: sqft_living, sqft_lot, waterfront, sqft_lot15 (4) since not significant
+
+Since p-value is greater than 0.05, we cannot reject the null and therefore we can use the reduced model.
+```{r}
+reduced <- glm(goodQuality ~ price + bedrooms + bathrooms + floors + view + yr_built + yr_renovated + sqft_living15 + region, family=binomial, data=train)
+summary(reduced)
+
+faraway::vif(reduced)
+
+test.stat <- reduced$deviance - result$deviance
+p.val <- 1 - pchisq(test.stat, 4)
+p.val
+```
+
+## Confusion Matrix
+Data is unbalanced. Using a threshold of 0.5, the FNR was high, so we lowered the threshold.
+```{r}
+##predicted probs for test data
+preds <- predict(reduced, newdata=test, type="response")
+
+##confusion matrix with threshold of 0.5
+table(test$goodQuality, preds>0.5)
+
+##confusion matrix with threshold of 0.15
+table(test$goodQuality, preds>0.15)
+```
+
+## ROC Curve
+```{r}
+library(ROCR)
+rates <- ROCR::prediction(preds, test$goodQuality)
+roc_result <- ROCR::performance(rates,measure="tpr", x.measure="fpr")
+plot(roc_result, main="ROC Curve for Reduced Model")
+lines(x = c(0,1), y = c(0,1), col="red")
+```
+
+## AUC
+```{r}
+auc <- ROCR::performance(rates, measure = "auc") 
+auc@y.values
+```
+
+
