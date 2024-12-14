@@ -1,0 +1,216 @@
+---
+title: "Group 2, Project 2 WIP"
+author: "Nathan Koh"
+date: "2024-11-17"
+output: html_document
+---
+
+
+loading csv with clean data
+```{r}
+library(dplyr)
+library(tidyverse)
+Data <- read.csv("kc_house_data.csv",header = TRUE)
+zipcode <- read.csv("zipcodeData.csv")
+Data$region <- c()
+for (i in 1:length(Data$zipcode)){
+  regionMatch <- zipcode[zipcode$x == Data$zipcode[i],]$region
+  Data$region[i]<- regionMatch 
+}
+cleanData <- Data[(Data$bedrooms!=0),]
+cleanData <- cleanData[(cleanData$bathrooms!=0),]
+cleanData <- cleanData[(cleanData$bedrooms<30),]
+cleanData <- cleanData[ , -which(names(cleanData) %in% c("date","sqft_above","sqft_basement","zipcode","lat","long"))]
+```
+
+From Kaggle, variable definitions:
+
+*id* - Unique ID for each home sold
+*date* - Date of the home sale
+*price* - Price of each home sold
+*bedrooms* - Number of bedrooms
+*bathrooms* - Number of bathrooms, where .5 accounts for a room with a toilet but no shower
+*sqft_living* - Square footage of the apartments interior living space
+*sqft_lot* - Square footage of the land space
+*floors* - Number of floors
+*waterfront* - A dummy variable for whether the apartment was overlooking the waterfront or not
+
+Categorical
+-------------------
+*view* - An index from 0 to 4 of how good the view of the property was
+*condition* - An index from 1 to 5 on the condition of the apartment,
+*grade* - An index from 1 to 13, where 1-3 falls short of building construction and design, 7 has an average level of construction and design, and 11-13 have a high quality level of construction and design.
+-------------------
+*sqft_above* - The square footage of the interior housing space that is above ground level
+*sqft_basement* - The square footage of the interior housing space that is below ground level
+
+
+Build Details + Geography
+--------------------------
+*yr_built* - The year the house was initially built
+*yr_renovated* - The year of the house’s last renovation
+*zipcode* - What zipcode area the house is in
+*lat* - Latitude
+*long* - Longitude
+*sqft_living15* - The square footage of interior housing living space for the nearest 15 neighbors (create viz vs price)
+*sqft_lot15* - The square footage of the land lots of the nearest 15 neighbors (create viz vs price)
+*region* - New variable depicting the region of the home based on zip code
+
+**SECTION 6**
+
+The below bar charts have the total distribution of homes across all condition and grade levels.
+```{r}
+ggplot(cleanData,aes(x=condition))+
+  geom_bar(fill='blue',color='orange')+
+  labs(x="Condition",y="Count")+geom_text(aes(label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
+```
+```{r}
+ggplot(cleanData,aes(x=grade))+
+  geom_bar(fill='blue',color='orange')+
+  labs(x="grade",y="Count")+geom_text(aes(label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
+```
+
+Created a new dataframe that only shows homes with condition greater than 3 and grade greater than 7 for Section 6 observations.
+```{r}
+#filter df so that it only shows homes of condition >3, grade >7
+cleanData2 <- cleanData %>% 
+  group_by(condition,grade) %>% filter(condition>3,grade>7)
+```
+
+The below visualizations have the number of homes across condition 4 and 5 and grades 8 to 13.
+```{r}
+#number of homes per condition level
+cleanData2$condition<-factor(cleanData2$condition)
+ggplot(cleanData2,aes(x=condition))+
+  geom_bar()+
+  labs(x="Condition",y="Count", title="Total number of homes via condition score")
+```
+
+```{r}
+#number of homes per grade level
+ggplot(cleanData2,aes(x=grade))+
+  geom_bar()+
+  labs(x="Grade",y='Count',title='Total number of homes across grade')
+```
+
+The below visualization shows the boxplots comparing condition against price. There is a slight increase in the median line across the condition level which indicates that price does play some factor in determining the condition of a home.
+```{r}
+ggplot2::ggplot(cleanData2, aes(x=condition,y=price, fill=condition))+geom_boxplot()+
+  labs(x="Condition",y="Price",title="Boxplot of Condition against Price")
+
+```
+
+The below visualization shows boxplots comparing the price distribution of homes across each grade level.
+```{r}
+ggplot2::ggplot(cleanData2, aes(x=grade,y=price, fill=grade))+geom_boxplot()+
+  labs(x="Grade",y="Price",title="Boxplot of Grade against Price")
+```
+
+There is an increasing trend in the median price based on the grade of the home, with grade 13 defined as a home with a 'high quality level of construction and design'. There seems to be a relation between the grade of a home and its price, so this variable plays a factor in determining a home's grade.
+
+```{r}
+ggplot2::ggplot(cleanData2, aes(x=grade,y=sqft_lot))+geom_boxplot()+
+  labs(x="Grade",y="Sqft Lot",title="Boxplot of Grade against Sqft Lot")+ylim(0,80000)
+```
+This boxplot shows grade against sqft_lot. There is an increasing trend in the median line where the higher the grade, the more sqft_lot a home has surrounding it. Also note that the inverse relationship regarding the outliers across each grade due to the lack of data points the higher the grade (most of the outliers are from 8 to 11, then there is a sharp decrease for 12 and 13).
+
+
+This boxplot compares condition against sqft_lot. There does not look to be any difference as the median lines are alike. The IQR ranges are also very similar to each other. This could mean that this variable is not as important of a variable.
+```{r}
+ggplot2::ggplot(cleanData2, aes(x=condition,y=sqft_lot))+geom_boxplot()+
+  labs(x="Grade",y="Sqft Lot",title="Boxplot of Grade against Sqft Lot")+ylim(0,80000)
+```
+Supplemental information of data distribution that qualifies as good homes.
+```{r}
+table(cleanData2$grade)
+```
+
+Created combined side by side boxplot to show all three variables together.
+
+```{r}
+ggplot2::ggplot(cleanData2, aes(x=grade,y=sqft_lot,fill=condition))+geom_boxplot()+
+  labs(x="Grade",y="Sqft Lot",title="Boxplot of Grade against Sqft Lot")+ylim(0,80000)
+```
+Additional information to check median for grade 11.
+```{r}
+summary(cleanData2$sqft_lot[cleanData2$grade==10])
+summary(cleanData2$sqft_lot[cleanData2$grade==11])
+summary(cleanData2$sqft_lot[cleanData2$grade==12])
+```
+
+
+```{r}
+#do the same with grade
+cleanData2$condition <-factor(cleanData2$condition)
+
+ggplot2::ggplot(cleanData2, aes(x=grade,y=price,fill=grade))+geom_boxplot()+
+  labs(x="Grade",y="Price",title="Boxplot of Grade against Price")
+
+good.df$view<-factor(good.df$view)
+#boxplot with comparing view to yr built and scaled by grade
+ggplot2::ggplot(cleanData2, aes(x=condition,y=sqft_lot,fill=grade))+geom_boxplot()+ylim(0,80000)
+  labs(x="View Rating",y="Year Built",title="Boxplot of the View Rating against Year Built")
+
+
+```
+Based on the grade of the home, the sqft_lot of said home increased across all levels. This indicates that despite the condition of the home, sqft_lot plays a bigger factor with grade.
+
+
+Correlation between condition, grade, and others
+```{r}
+dens1<-ggplot(cleanData2,aes(x=sqft_living,color=grade))+
+  geom_density()+
+  labs(title="Density Plot of Grade by Year Built")
+dens1
+dens2<-ggplot(good.df,aes(x=sqft_, color =grade))+
+  geom_density()+
+  labs(title="Density Plot of Grade and Sqft Lot")
+dens2
+dens3<-ggplot(cleanData2,aes(x=sqft_living15, color = condition))+
+  geom_density()+
+  labs(title="Density Plot of Condition by Price")
+dens3
+cleanData2$grade<-factor(cleanData2$grade)
+dens4<-ggplot(cleanData2,aes(x=sqft_living, color= condition))+
+  geom_density()+
+  labs(title="Density Plot of Sqft Living by Condition")
+dens4
+library(gridExtra)
+grid.arrange(dens1,dens2,dens3, dens4,ncol=2, nrow=2)
+
+#comparing bedrooms to condition
+ggplot(cleanData2,aes(x=bathrooms, fill=condition))+
+  geom_histogram(binwidth=0.25, color = 'black')+
+  labs(x="Bathrooms",y='Count',title='Total number of homes with Bathrooms')
+```
+
+```{r}
+dens5<-ggplot(cleanData2,aes(x=sqft_living, fill=condition))+
+  geom_histogram(color='black')+
+  labs(x="Bathrooms",y='Count',title='Total number of homes with Bathrooms')
+dens5
+dens6<- ggplot(cleanData2,aes(x=sqft_living, color=condition))+
+  geom_density()+
+  labs(title='Density Plot of Condition by Sqft Living')
+dens6
+dens7<-ggplot(cleanData2,aes(x=bedrooms,fill=condition))+
+  geom_bar(position='identity')+
+  labs(title="Frequency of total # of Bedrooms by Condition")
+dens7
+dens8<-ggplot(cleanData2,aes(x=yr_built,color=condition))+
+  geom_density()+
+  labs(title="Density Plot of Condition by Year Built")
+dens8
+
+library(gridExtra)
+grid.arrange(dens5,dens6,dens7, dens8,ncol=2, nrow=2)
+```
+
+Observations:
+Yr_Built (Density)- It appears that depending on when the home was built in King County, it determined the trend of the home's condition. There were more homes with condition 5 until the 1960s. Then homes with condition 4 became popular up until 2010. This could be due to homes being cheaper to build during that year.
+
+Sqft_living (Density) - When comparing each condition of home based on the amount of interior living space, the density plots are almost identical. This suggests sqft_living does not directly relate to the condition of a home.
+
+Bedrooms (Stacked Bar)- Depending on the number of bedrooms in a home that are either condition 4 or 5, we see that condition 4 homes have a majority of 4 bedrooms, with 3 bedrooms being second best. There is a similar pattern occurring for condition 5 homes but it does indicate that bedrooms directly affect the condition score.
+
+Bathrooms (Histogram)- Depending on the number of bathrooms in a home that are either condition 4 or 5, we see a similar pattern to that of bedrooms where condition 4 homes have a majority of 2.25 bathrooms, with second best being 2.25 bathrooms. Similarly, condition 5 bathrooms have a majority of 2.5 bathrooms, with second best being 1.75, 2.25, 2.75 bathrooms. Despite these results, bathrooms do not affect the condition of a home.
