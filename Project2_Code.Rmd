@@ -1,0 +1,894 @@
+---
+title: "Project 2"
+author: "Group 2: James Caldwell, Sarah Christen,Nathan Koh, Margaret Lindsay "
+date: "2024-12-15"
+output: pdf_document
+---
+
+```{r,include = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(GGally)
+library(scales)
+library(patchwork)
+library(gapminder)
+library(scales)
+library(knitr)
+library(gridExtra)
+
+
+Data <- read.csv("kc_house_data.csv",header = TRUE)
+zipcode <- read.csv("zipcodeData.csv")
+Data$region <- c()
+for (i in 1:length(Data$zipcode)){
+  regionMatch <- zipcode[zipcode$x == Data$zipcode[i],]$region
+  Data$region[i]<- regionMatch 
+}
+cleanData <- Data[(Data$bedrooms!=0),]
+cleanData <- cleanData[(cleanData$bathrooms!=0),]
+cleanData <- cleanData[(cleanData$bedrooms<30),]
+cleanData <- cleanData[ , -which(names(cleanData) %in% c("date","sqft_above","sqft_basement","zipcode","lat","long"))]
+```
+
+
+## Section 2 and Section 3
+
+```{r,include = FALSE}
+
+which(is.na(Data)) # no N/As in Data
+colnames(Data)
+
+Data$waterfront <- factor(Data$waterfront)
+Data$view <- factor(Data$view)
+Data$condition <- factor(Data$condition)
+Data$grade <- factor(Data$grade)
+
+houseSales <- nrow(Data)
+houses <- length(unique(Data$id))
+duplicate_house_id <- Data |>
+  group_by(id) |>
+  filter(n() > 1) |>
+  ungroup()
+
+renovated <- Data[Data$yr_renovated!=0,]
+```
+
+# Summary Stats of Variables
+
+```{r,echo = FALSE}
+price_mean <- dollar_format()(mean(Data$price,na.rm = TRUE))
+price_median <- dollar_format()(median(Data$price,na.rm = TRUE))
+price_min <- dollar_format()(min(Data$price))
+price_max <- dollar_format()(max(Data$price))
+
+bedrooms_mean <- round(mean(Data$bedrooms,na.rm = TRUE),2)
+bedrooms_median <- round(median(Data$bedrooms,na.rm = TRUE),2)
+bedrooms_min <- round(min(Data$bedrooms),2)
+bedrooms_max <- round(max(Data$bedrooms),2)
+
+bathrooms_mean <- round(mean(Data$bathrooms,na.rm = TRUE),2)
+bathrooms_median <- round(median(Data$bathrooms,na.rm = TRUE),2)
+bathrooms_min <- round(min(Data$bathrooms),2)
+bathrooms_max <- round(max(Data$bathrooms),2)
+
+sqftliving_mean <- round(mean(Data$sqft_living,na.rm = TRUE),2)
+sqftliving_median <- round(median(Data$sqft_living,na.rm = TRUE),2)
+sqftliving_min <- round(min(Data$sqft_living),2)
+sqftliving_max <- round(max(Data$sqft_living),2)
+
+sqftlot_mean <- round(mean(Data$sqft_lot,na.rm = TRUE),2)
+sqftlot_median <- round(median(Data$sqft_lot,na.rm = TRUE),2)
+sqftlot_min <- round(min(Data$sqft_lot),2)
+sqftlot_max <- round(max(Data$sqft_lot),2)
+
+floors_mean <- round(mean(Data$floors,na.rm = TRUE),2)
+floors_median <- round(median(Data$floors,na.rm = TRUE),2)
+floors_min <- round(min(Data$floors),2)
+floors_max <- round(max(Data$floors),2)
+
+view_mean <- round(mean(as.numeric(Data$view),na.rm = TRUE),2)
+view_median <- round(median(as.numeric(Data$view),na.rm = TRUE),2)
+view_min <- round(min(as.numeric(Data$view)),2)
+view_max <- round(max(as.numeric(Data$view)),2)
+
+condition_mean <- round(mean(as.numeric(Data$condition),na.rm = TRUE),2)
+condition_median <- round(median(as.numeric(Data$condition),na.rm = TRUE),2)
+condition_min <- round(min(as.numeric(Data$condition)),2)
+condition_max <- round(max(as.numeric(Data$condition)),2)
+
+grade_mean <- round(mean(as.numeric(Data$grade),na.rm = TRUE),2)
+grade_median <- round(median(as.numeric(Data$grade),na.rm = TRUE),2)
+grade_min <- round(min(as.numeric(Data$grade)),2)
+grade_max <- round(max(as.numeric(Data$grade)),2)
+
+sqftabove_mean <- round(mean(Data$sqft_above,na.rm = TRUE),2)
+sqftabove_median <- round(median(Data$sqft_above,na.rm = TRUE),2)
+sqftabove_min <- round(min(Data$sqft_above),2)
+sqftabove_max <- round(max(Data$sqft_above),2)
+
+sqftbasement_mean <- round(mean(Data$sqft_basement,na.rm = TRUE),2)
+sqftbasement_median <- round(median(Data$sqft_basement,na.rm = TRUE),2)
+sqftbasement_min <- round(min(Data$sqft_basement),2)
+sqftbasement_max <- round(max(Data$sqft_basement),2)
+
+yrbuilt_mean <- round(mean(Data$yr_built,na.rm = TRUE),2)
+yrbuilt_median <- round(median(Data$yr_built,na.rm = TRUE),2)
+yrbuilt_min <- round(min(Data$yr_built),2)
+yrbuilt_max <- round(max(Data$yr_built),2)
+
+sqftliving15_mean <- round(mean(Data$sqft_living15,na.rm = TRUE),2)
+sqftliving15_median <- round(median(Data$sqft_living15,na.rm = TRUE),2)
+sqftliving15_min <- round(min(Data$sqft_living15),2)
+sqftliving15_max <- round(max(Data$sqft_living15),2)
+
+sqftlot15_mean <- round(mean(Data$sqft_lot15,na.rm = TRUE),2)
+sqftlot15_median <- round(median(Data$sqft_lot15,na.rm = TRUE),2)
+sqftlot15_min <- round(min(Data$sqft_lot15),2)
+sqftlot15_max <- round(max(Data$sqft_lot15),2)
+
+variableNames <- c('Price','Bedrooms','Bathrooms','Sqft Living','Sqft Lot','Floors','View','Condition','Grade','Sqft Above','Sqft Basement','Yr Built','Sqft Living 15','Sqft Lot 15')
+varMean <- c(price_mean,bedrooms_mean,bathrooms_mean,sqftliving_mean,sqftlot_mean,floors_mean,view_mean,condition_mean,grade_mean,sqftabove_mean,sqftbasement_mean,yrbuilt_mean,sqftliving15_mean,sqftlot15_mean)
+varMedian <- c(price_median,bedrooms_median,bathrooms_median,sqftliving_median,sqftlot_median,floors_median,view_median,condition_median,grade_median,sqftabove_median,sqftbasement_median,yrbuilt_median,sqftliving15_median,sqftlot15_median)
+varMin <- c(price_min,bedrooms_min,bathrooms_min,sqftliving_min,sqftlot_min,floors_min,view_min,condition_min,grade_min,sqftabove_min,sqftbasement_min,yrbuilt_min,sqftliving15_min,sqftlot15_min)
+varMax <- c(price_max,bedrooms_max,bathrooms_max,sqftliving_max,sqftlot_max,floors_max,view_max,condition_max,grade_max,sqftabove_max,sqftbasement_max,yrbuilt_max,sqftliving15_max,sqftlot15_max)
+summary_variables <- data.frame(variableNames,varMean,varMedian,varMin,varMax)
+colnames(summary_variables) <- c('Variable','Mean','Median','Minimum','Maximum')
+
+kable(summary_variables)
+```
+
+```{r,echo = FALSE}
+highPrice <- Data[Data$price>mean(Data$price)+(3*sd(Data$price)),]
+lowPrice <- Data[Data$price<mean(Data$price)-(3*sd(Data$price)),]
+
+highBedrooms <- Data[Data$bedrooms>mean(Data$bedrooms)+(3*sd(Data$bedrooms)),]
+lowBedrooms <- Data[Data$bedrooms<mean(Data$bedrooms)-(3*sd(Data$bedrooms)),]
+
+highBathrooms <- Data[Data$bathrooms>mean(Data$bathrooms)+(3*sd(Data$bathrooms)),]
+lowBathrooms <- Data[Data$bathrooms<mean(Data$bathrooms)-(3*sd(Data$bathrooms)),]
+
+highSqftLiving <- Data[Data$sqft_living>mean(Data$sqft_living)+(3*sd(Data$sqft_living)),]
+lowSqftLiving <- Data[Data$sqft_living<mean(Data$sqft_living)-(3*sd(Data$sqft_living)),]
+
+highSqftLot <- Data[Data$sqft_lot>mean(Data$sqft_lot)+(3*sd(Data$sqft_lot)),]
+lowSqftLot <- Data[Data$sqft_lot<mean(Data$sqft_lot)-(3*sd(Data$sqft_lot)),]
+
+highFloors <- Data[Data$floors>mean(Data$floors)+(3*sd(Data$floors)),]
+lowFloors <- Data[Data$floors<mean(Data$floors)-(3*sd(Data$floors)),]
+
+#highView <- Data[Data$view>mean(Data$view)+(3*sd(Data$view)),]
+#lowView <- Data[Data$view<mean(Data$view)-(3*sd(Data$view)),]
+
+#highCondition <- Data[Data$condition>mean(Data$condition)+(3*sd(Data$condition)),]
+#lowCondition <- Data[Data$condition<mean(Data$condition)-(3*sd(Data$condition)),]
+
+#highGrade <- Data[Data$grade>mean(Data$grade)+(3*sd(Data$grade)),]
+#lowGrade <- Data[Data$grade<mean(Data$grade)-(3*sd(Data$grade)),]
+
+highSqftAbove <- Data[Data$sqft_above>mean(Data$sqft_above)+(3*sd(Data$sqft_above)),]
+lowSqftAbove <- Data[Data$sqft_above<mean(Data$sqft_above)-(3*sd(Data$sqft_above)),]
+
+highSqftBasement <-Data[Data$sqft_basement>mean(Data$sqft_basement)+(3*sd(Data$sqft_basement)),]
+lowSqftBasement <- Data[Data$sqft_basement<mean(Data$sqft_basement)-(3*sd(Data$sqft_basement)),]
+
+highYrBuilt <- Data[Data$yr_built>mean(Data$yr_built)+(3*sd(Data$yr_built)),]
+lowYrBuilt <- Data[Data$yr_built<mean(Data$yr_built)-(3*sd(Data$yr_built)),]
+
+variableNameOut <- c('Price','Bedrooms','Bathrooms','Sqft Living','Sqft Lot','Floors','Sqft Above','Sqft Basement','Yr Built')
+highOut <- c(nrow(highPrice),nrow(highBedrooms),nrow(highBathrooms),nrow(highSqftLiving),nrow(highSqftLot),nrow(highFloors),nrow(highSqftAbove),nrow(highSqftBasement),nrow(highYrBuilt))
+lowOut <- c(nrow(lowPrice),nrow(lowBedrooms),nrow(lowBathrooms),nrow(lowSqftLiving),nrow(lowSqftLot),nrow(lowFloors),nrow(lowSqftAbove),nrow(lowSqftBasement),nrow(lowYrBuilt))
+summary_outliers <- data.frame(variableNameOut,highOut,lowOut)
+colnames(summary_outliers) <- c('Variable','Above 3 SD','Below 3 SD')
+kable(summary_outliers)
+```
+
+## Section 4
+
+```{r}
+## Adding region predictor
+Data$region <- c()
+for (i in 1:length(Data$zipcode)){
+  regionMatch <- zipcode[zipcode$x == Data$zipcode[i],]$region
+  Data$region[i]<- regionMatch 
+}
+
+## Adding Binary Variable for Good Quality Homes (Condition > 3 & Grade > 7)
+Data <- Data %>% 
+  mutate(goodQuality = ifelse(condition > 3 & grade > 7, "Yes", "No"))
+
+## Adding Variables for Grade Categories
+Data <- Data %>% 
+  mutate(grade.cat=case_when(grade <= 3 ~ "low",
+    grade >3 & grade <=6 ~ "medium low", grade == 7 ~ "average", grade > 7 & grade < 11 ~ "medium high", grade >= 11 ~ "high"))
+
+Data$grade.cat<-factor(Data$grade.cat, levels=c("low","medium low","average","medium high", "high"))
+
+Data$goodQuality <- factor(Data$goodQuality)
+
+## Factoring Categorical Variables
+Data$waterfront <- factor(Data$waterfront)
+
+## Removing errors identified in section 3
+cleanData <- Data[(Data$bedrooms!=0),]
+cleanData <- cleanData[(cleanData$bathrooms!=0),]
+cleanData <- cleanData[(cleanData$bedrooms<30),]
+cleanData <- cleanData[ , -which(names(cleanData) %in% c("date","sqft_above","sqft_basement","zipcode","lat","long"))]
+
+## Split for Training/Test Data
+
+set.seed(6021)
+sample.data<-sample.int(nrow(cleanData), floor(.50*nrow(cleanData)), replace = F)
+train<-cleanData[sample.data, ]
+test<-cleanData[-sample.data, ]
+
+## Unbalanced? -- Yes, unbalanced toward No
+table(cleanData$goodQuality)
+```
+
+
+# SECTION 4
+
+## Univariate Visualizations
+```{r}
+summary(train$price)
+
+ggplot(train, aes(y=price))+
+  geom_boxplot()+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_y_continuous(labels = scales::comma)+
+  labs(y="Price ($)\n", title="Box Plot of Selling Price")
+```
+
+```{r}
+ggplot(train,aes(x=price)) + 
+  geom_density()+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_x_continuous(labels = scales::comma)+
+  labs(x="Price ($)", y="Density", title="Density Plot of Selling Price")
+```
+
+```{r}
+ggplot(train,aes(x=price))+
+  geom_histogram(binwidth = 10000, color='navy')+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_x_continuous(labels = scales::comma)+
+  labs(x="Price ($)", y="Count", title="Histogram of Selling Price")
+```
+
+```{r}
+train.under2M <- train %>% 
+  filter(price < 2000000) %>% 
+  arrange(-price)
+
+ggplot(train.under2M,aes(x=price))+
+  geom_histogram(binwidth = 10000, color='navy')+
+  theme(plot.title = element_text(hjust = 0.5))+
+  scale_x_continuous(labels = scales::comma)+
+  labs(x="Price ($)", y="Count", title="Histogram of Selling Price")
+```
+
+```{r}
+ggplot(train,aes(x=yr_built)) + 
+  geom_density()+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Year Built", y="Density", title="Density Plot of House Counstruction Year")
+```
+
+```{r}
+ggplot(train,aes(x=yr_built))+
+  geom_histogram(binwidth = 10, color='white')+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Year Built", y="Count", title="Histogram of House Counstruction Year")
+```
+
+```{r}
+ggplot(train,aes(x=bedrooms))+
+  geom_histogram(binwidth=1, color='white')+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Number of Bedrooms", y="Count", title="Histogram of Number of Bedrooms")+
+  stat_count(binwidth = 1, 
+             geom = 'text', 
+             color = 'white', 
+             aes(label = after_stat(count)),
+            position = position_stack(vjust = 0.5))
+```
+
+## Bivariate Visuaizations
+```{r}
+ggplot(train, aes(x=bedrooms, y=price))+
+  geom_point()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Number of Bedrooms", y="Price ($)\n", title="Selling Price Against Number of Bedrooms")
+```
+
+```{r}
+ggplot(train, aes(x=bathrooms, y=price))+
+  geom_point()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Number of Bathrooms", y="Price ($)\n", title="Selling Price Against Number of Bathrooms")
+```
+
+```{r}
+ggplot(train, aes(x=sqft_living, y=price))+
+  geom_point()+
+  scale_y_continuous(labels = scales::comma)+
+  scale_x_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Interior Square Footage", y="Price ($)\n", title="Selling Price Against Interior Square Footage")
+
+Data %>% 
+  arrange(-sqft_living)
+```
+
+```{r}
+ggplot(train, aes(x=grade, y=price))+
+  geom_point()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Grade", y="Price ($)\n", title="Home Selling Price Against Grade")
+```
+
+```{r}
+ggplot(train, aes(x=waterfront, y=price))+
+  geom_boxplot()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Waterfront Status", y="Price ($)\n", title="Home Selling Price Against Waterfront Status")
+```
+```{r}
+ggplot(train, aes(x=factor(train$view), y=price))+
+  geom_boxplot()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="View Ranking", y="Price ($)\n", title="Home Selling Price Against View Ranking")
+```
+
+
+```{r}
+ggplot(train, aes(x=grade.cat, y=price))+
+  geom_boxplot()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Grade Category", y="Price ($)\n", title="Home Selling Price Against Grade")
+```
+
+
+```{r}
+ggplot(train, aes(x=condition, y=price))+
+  geom_point()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Condition", y="Price ($)\n", title="Home Selling Price Against Home Condition")
+```
+
+
+```{r}
+tapply(train$price,train$condition,median)
+```
+
+## Multivariate Visualizations
+```{r}
+train <- train %>% 
+  mutate(ouMedian = ifelse(price>median(price),"Over Median","Under Median"))
+  
+ggplot(train,aes(x=yr_built, color=ouMedian)) + 
+  geom_density()+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Year Built", y="Density", title="Density Plot of House Counstruction Year", color="Relation to Median Sale Price")
+```
+```{r}
+ggplot(train, aes(x=bedrooms, y=price, color=grade))+
+  geom_point()+
+  scale_y_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Number of Bedrooms", y="Price ($)\n", color="Grade", title="Home Selling Price Against Number of Bedrooms by Grade")
+```
+
+```{r}
+ggplot(train, aes(x=sqft_lot, y=price, color=grade))+
+  geom_point()+
+  scale_y_continuous(labels = scales::comma)+
+  scale_x_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Lot Square Footage", y="Price ($)\n", color="Grade", title="Home Selling Price Against Lot Sqaure Footage by Grade")
+```
+
+```{r}
+ggplot(train, aes(x=bedrooms, y=price, color=condition))+
+  geom_point(alpha=0.5)+
+  scale_y_continuous(labels = scales::comma)+
+  scale_x_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Number of Bedrooms", y="Price ($)\n", color="Condition", title="Home Selling Price Against Number of Bedrooms by Condition")
+```
+
+```{r}
+ggplot(train, aes(x=sqft_living, y=price, fill=bedrooms, size=condition))+
+  geom_point(shape=21,alpha=0.5)+
+  scale_y_continuous(labels = scales::comma)+
+  scale_x_continuous(labels = scales::comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  labs(x="Interior Square Footage", y="Price ($)\n", color="Bedrooms", title="Selling Price Against Number of Bedrooms by Condition")
+```
+
+## Section 5
+
+```{r}
+# Need to reimport data since factors not needed in this step as in section 4 and 7
+Data <- read.csv("kc_house_data.csv",header = TRUE)
+zipcode <- read.csv("zipcodeData.csv")
+# Add new variable, Region (based on zip code
+Data$region <- c()
+for (i in 1:length(Data$zipcode)){
+  regionMatch <- zipcode[zipcode$x == Data$zipcode[i],]$region
+  Data$region[i]<- regionMatch 
+}
+# Remove errors as discussed in section 3
+cleanData <- Data[(Data$bedrooms!=0),]
+cleanData <- cleanData[(cleanData$bathrooms!=0),]
+cleanData <- cleanData[(cleanData$bedrooms<30),]
+cleanData <- cleanData[ , -which(names(cleanData) %in% c("date","sqft_above","sqft_basement","zipcode","lat","long"))]
+
+
+set.seed(6021)
+sample.data<-sample.int(nrow(cleanData), floor(.50*nrow(Data)), replace = F)
+train<-cleanData[sample.data, ]
+test<-cleanData[-sample.data, ]
+
+# Add training/test data
+
+regnull <- lm(price~1, data=train) # Intercept only model
+regfull <- lm(price~., data=train) # Model with all predictors
+
+MLR_forward <- step(regnull, scope=list(lower=regnull, upper=regfull), direction="forward")
+
+```
+
+```{r}
+# Extract AIC values
+aic_values <- MLR_forward$anova$AIC
+# Create a data frame for ggplot
+aic_data <- data.frame(Step = seq_along(aic_values),AIC = aic_values)
+
+ggplot(aic_data, aes(x = Step, y = AIC)) +
+  geom_line(color = "blue", size = 1) +      # Line connecting points
+  geom_point(color = "blue", size = 2) +     # Points
+  labs(
+    title = "AIC at Each Step of Forward Selection",
+    x = "Step",
+    y = "AIC" ) +
+  geom_vline(xintercept = 6) +
+  geom_hline(yintercept = 265000)
+```
+(before using Sarah's region)
+Step 6: 
+price ~ sqft_living + lat + view + grade + yr_built
+
+
+with zip code regions:
+price ~ sqft_living + region + waterfront + grade + yr_built
+
+Check residual plots:
+```{r}
+result<-lm(price ~ sqft_living + region + waterfront + grade + yr_built, data=train)
+par(mfrow = c(2, 2))
+plot(result)
+```
+```{r}
+MASS::boxcox(result)
+```
+
+
+```{r}
+##transform y 
+ystar<-log(train$price)
+train<-data.frame(train,ystar)
+
+result2<-lm(ystar ~ sqft_living + region + waterfront + grade + yr_built, data=train)
+par(mfrow = c(2, 2))
+plot(result2)
+```
+Investigating high leverage points:
+```{r}
+hii<-lm.influence(result2)$hat ##leverages
+ext.student<-rstudent(result2) ##ext studentized res
+n<-nrow(cleanData)
+p<-5
+
+length(hii[hii>2*p/n])
+
+```
+~6000 data points out of 22000 are considered high leverage.
+
+Outliers:
+```{r}
+length(ext.student[abs(ext.student)>3])
+```
+89 data points could be considered outliers.
+
+Influential observations:
+```{r}
+DFFITS<-dffits(result)
+length(DFFITS[abs(DFFITS)>2*sqrt(p/n)])
+```
+Using the DEFITS method, there are ~1200 data points that could be influential. 
+
+
+The final model is:
+```{r}
+print(result2$coefficients)
+```
+
+Make a model with all the predictors and bad predictors to compare with our model:
+```{r}
+model_full<-lm(ystar ~ sqft_living + region + waterfront + grade + yr_built + 
+    view + bedrooms + bathrooms + condition + sqft_lot15 + sqft_living15 + 
+    id + floors + sqft_lot, data=train)
+model_bad<-lm(ystar ~ floors + sqft_lot, data=train)
+
+test$log_price_predictions_full = predict(model_full,newdata = test)
+test$price_predictions_full = exp(test$log_price_predictions_full)
+
+test$log_price_predictions_bad = predict(model_bad,newdata = test)
+test$price_predictions_bad = exp(test$log_price_predictions_bad)
+```
+
+
+
+## Prediction on test data and evaluation of model accuracy
+
+```{r}
+test$log_price_predictions = predict(result2,newdata = test)
+test$price_predictions = exp(test$log_price_predictions)
+
+test$log_price_predictions_bad = predict(model_bad,newdata = test)
+test$price_predictions_bad = exp(test$log_price_predictions_bad)
+
+test$log_price_predictions_full = predict(model_full,newdata = test)
+test$price_predictions_full = exp(test$log_price_predictions_full)
+
+# Print the first 25 rows
+test_price_only <- test %>%
+  dplyr::select(price, price_predictions,sqft_living,grade,yr_built)
+
+head(test_price_only,25)
+
+library(tidyr)
+
+# Create a long format dataframe with a combined price and price predictions, with 
+  # "Type" as a new column denoting which one each entry is. This way, we can plot
+  # The two on the same plot to visualize how the model is predicting vs the actuals
+test_long <- test %>%
+  pivot_longer(cols = c(price, price_predictions,price_predictions_bad,price_predictions_full),
+               names_to = "type",
+               values_to = "predicted_and_actual")
+
+# Create the plot
+ggplot(test_long, aes(x = sqft_living, y = predicted_and_actual, color = type)) +
+  geom_point(size = 1, alpha = 1) +
+  labs(title = "Actual vs Predicted Prices",
+       x = "Square Footage",
+       y = "Price") +
+      xlim(0, 8000) +  # Set x-axis limits
+      ylim(0, 7000000)   # Set y-axis limits
+
+# This plot skips displaying one datapoint, which is the very expensive house of 1.25M Sqft. Zooming in beyond this point helps see the smaller details better.
+```
+RMSE
+```{r}
+library(Metrics)
+
+# Calculate RMSE
+rmse_small <- rmse(test$price, test$price_predictions)
+cat('Ideal model:',rmse_small)
+rmse_bad <- rmse(test$price, test$price_predictions_bad)
+cat('\nBad model:',rmse_bad)
+rmse_full <- rmse(test$price, test$price_predictions_full)
+cat('\nfull model:',rmse_full)
+```
+
+```{r}
+test$residual_percent <- (abs(test$price-test$price_predictions_full)/test$price) * 100
+
+ggplot(test, aes(x = price, y =residual_percent)) +
+  geom_point() +
+  labs(title = "Percent Accuracy of predicted vs actual",
+       x = "Price",
+       y = "Percent Accuracy")
+
+summary(test$residual_percent)
+```
+
+## Section 6
+
+From Kaggle, variable definitions:
+
+*id* - Unique ID for each home sold
+*date* - Date of the home sale
+*price* - Price of each home sold
+*bedrooms* - Number of bedrooms
+*bathrooms* - Number of bathrooms, where .5 accounts for a room with a toilet but no shower
+*sqft_living* - Square footage of the apartments interior living space
+*sqft_lot* - Square footage of the land space
+*floors* - Number of floors
+*waterfront* - A dummy variable for whether the apartment was overlooking the waterfront or not
+
+Categorical
+-------------------
+*view* - An index from 0 to 4 of how good the view of the property was
+*condition* - An index from 1 to 5 on the condition of the apartment,
+*grade* - An index from 1 to 13, where 1-3 falls short of building construction and design, 7 has an average level of construction and design, and 11-13 have a high quality level of construction and design.
+-------------------
+*sqft_above* - The square footage of the interior housing space that is above ground level
+*sqft_basement* - The square footage of the interior housing space that is below ground level
+
+
+Build Details + Geography
+--------------------------
+*yr_built* - The year the house was initially built
+*yr_renovated* - The year of the house’s last renovation
+*zipcode* - What zipcode area the house is in
+*lat* - Latitude
+*long* - Longitude
+*sqft_living15* - The square footage of interior housing living space for the nearest 15 neighbors (create viz vs price)
+*sqft_lot15* - The square footage of the land lots of the nearest 15 neighbors (create viz vs price)
+*region* - New variable depicting the region of the home based on zip code
+
+**SECTION 6**
+
+From Kaggle, variable definitions:
+
+*id* - Unique ID for each home sold
+*date* - Date of the home sale
+*price* - Price of each home sold
+*bedrooms* - Number of bedrooms
+*bathrooms* - Number of bathrooms, where .5 accounts for a room with a toilet but no shower
+*sqft_living* - Square footage of the apartments interior living space
+*sqft_lot* - Square footage of the land space
+*floors* - Number of floors
+*waterfront* - A dummy variable for whether the apartment was overlooking the waterfront or not
+
+Categorical
+-------------------
+*view* - An index from 0 to 4 of how good the view of the property was
+*condition* - An index from 1 to 5 on the condition of the apartment,
+*grade* - An index from 1 to 13, where 1-3 falls short of building construction and design, 7 has an average level of construction and design, and 11-13 have a high quality level of construction and design.
+-------------------
+*sqft_above* - The square footage of the interior housing space that is above ground level
+*sqft_basement* - The square footage of the interior housing space that is below ground level
+
+
+Build Details + Geography
+--------------------------
+*yr_built* - The year the house was initially built
+*yr_renovated* - The year of the house’s last renovation
+*zipcode* - What zipcode area the house is in
+*lat* - Latitude
+*long* - Longitude
+*sqft_living15* - The square footage of interior housing living space for the nearest 15 neighbors (create viz vs price)
+*sqft_lot15* - The square footage of the land lots of the nearest 15 neighbors (create viz vs price)
+*region* - New variable depicting the region of the home based on zip code
+
+**SECTION 6**
+
+The below bar charts have the total distribution of homes across all condition and grade levels.
+```{r}
+ggplot(cleanData,aes(x=condition))+
+  geom_bar(fill='blue',color='orange')+
+  labs(x="Condition",y="Count")+geom_text(aes(label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
+```
+```{r}
+ggplot(cleanData,aes(x=grade))+
+  geom_bar(fill='blue',color='orange')+
+  labs(x="grade",y="Count")+geom_text(aes(label=..count..),stat='count',position=position_dodge(0.9),vjust=-0.2)
+```
+
+Created a new dataframe that only shows homes with condition greater than 3 and grade greater than 7 for Section 6 observations.
+```{r}
+#filter df so that it only shows homes of condition >3, grade >7
+cleanData2 <- cleanData %>% 
+  group_by(condition,grade) %>% filter(condition>3,grade>7)
+```
+
+The below visualizations have the number of homes across condition 4 and 5 and grades 8 to 13.
+```{r}
+#number of homes per condition level
+cleanData2$condition<-factor(cleanData2$condition)
+ggplot(cleanData2,aes(x=condition))+
+  geom_bar()+
+  labs(x="Condition",y="Count", title="Total number of homes via condition score")
+```
+
+```{r}
+#number of homes per grade level
+ggplot(cleanData2,aes(x=grade))+
+  geom_bar()+
+  labs(x="Grade",y='Count',title='Total number of homes across grade')
+```
+
+The below visualization shows the boxplots comparing condition against price. There is a slight increase in the median line across the condition level which indicates that price does play some factor in determining the condition of a home.
+```{r}
+ggplot2::ggplot(cleanData2, aes(x=condition,y=price, fill=condition))+geom_boxplot()+
+  labs(x="Condition",y="Price",title="Boxplot of Condition against Price")
+
+```
+
+The below visualization shows boxplots comparing the price distribution of homes across each grade level.
+```{r}
+cleanData2$grade <- factor(cleanData2$grade)
+ggplot2::ggplot(cleanData2, aes(x=grade,y=price, fill=grade))+geom_boxplot()+
+  labs(x="Grade",y="Price",title="Boxplot of Grade against Price")
+```
+
+There is an increasing trend in the median price based on the grade of the home, with grade 13 defined as a home with a 'high quality level of construction and design'. There seems to be a relation between the grade of a home and its price, so this variable plays a factor in determining a home's grade.
+
+```{r}
+ggplot2::ggplot(cleanData2, aes(x=grade,y=sqft_lot))+geom_boxplot()+
+  labs(x="Grade",y="Sqft Lot",title="Boxplot of Grade against Sqft Lot")+ylim(0,80000)
+```
+This boxplot shows grade against sqft_lot. There is an increasing trend in the median line where the higher the grade, the more sqft_lot a home has surrounding it. Also note that the inverse relationship regarding the outliers across each grade due to the lack of data points the higher the grade (most of the outliers are from 8 to 11, then there is a sharp decrease for 12 and 13).
+
+
+This boxplot compares condition against sqft_lot. There does not look to be any difference as the median lines are alike. The IQR ranges are also very similar to each other. This could mean that this variable is not as important of a variable.
+```{r}
+ggplot2::ggplot(cleanData2, aes(x=condition,y=sqft_lot))+geom_boxplot()+
+  labs(x="Grade",y="Sqft Lot",title="Boxplot of Grade against Sqft Lot")+ylim(0,80000)
+```
+Supplemental information of data distribution that qualifies as good homes.
+```{r}
+table(cleanData2$grade)
+```
+
+Created combined side by side boxplot to show all three variables together.
+
+```{r}
+ggplot2::ggplot(cleanData2, aes(x=grade,y=sqft_lot,fill=condition))+geom_boxplot()+
+  labs(x="Grade",y="Sqft Lot",title="Boxplot of Grade against Sqft Lot")+ylim(0,80000)
+```
+Additional information to check median for grade 11.
+```{r}
+summary(cleanData2$sqft_lot[cleanData2$grade==10])
+summary(cleanData2$sqft_lot[cleanData2$grade==11])
+summary(cleanData2$sqft_lot[cleanData2$grade==12])
+```
+
+
+Based on the grade of the home, the sqft_lot of said home increased across all levels. This indicates that despite the condition of the home, sqft_lot plays a bigger factor with grade.
+
+
+Correlation between condition, grade, and others
+
+
+
+```{r}
+dens1<-ggplot(cleanData2,aes(x=sqft_living, fill=condition))+
+  geom_histogram(color='black')+
+  labs(x="Bathrooms",y='Count',title='Total number of homes with Bathrooms')
+dens1
+dens2<- ggplot(cleanData2,aes(x=sqft_living, color=condition))+
+  geom_density()+
+  labs(title='Density Plot of Condition by Sqft Living')
+dens2
+dens3<-ggplot(cleanData2,aes(x=bedrooms,fill=condition))+
+  geom_bar(position='identity')+
+  labs(title="Frequency of total # of Bedrooms by Condition")
+dens3
+dens4<-ggplot(cleanData2,aes(x=yr_built,color=condition))+
+  geom_density()+
+  labs(title="Density Plot of Condition by Year Built")
+dens4
+
+library(gridExtra)
+grid.arrange(dens1,dens2,dens3, dens4,ncol=2, nrow=2)
+```
+
+Observations:
+Yr_Built (Density)- It appears that depending on when the home was built in King County, it determined the trend of the home's condition. There were more homes with condition 5 until the 1960s. Then homes with condition 4 became popular up until 2010. This could be due to homes being cheaper to build during that year.
+
+Sqft_living (Density) - When comparing each condition of home based on the amount of interior living space, the density plots are almost identical. This suggests sqft_living does not directly relate to the condition of a home.
+
+Bedrooms (Stacked Bar)- Depending on the number of bedrooms in a home that are either condition 4 or 5, we see that condition 4 homes have a majority of 4 bedrooms, with 3 bedrooms being second best. There is a similar pattern occurring for condition 5 homes but it does indicate that bedrooms directly affect the condition score.
+
+Bathrooms (Histogram)- Depending on the number of bathrooms in a home that are either condition 4 or 5, we see a similar pattern to that of bedrooms where condition 4 homes have a majority of 2.25 bathrooms, with second best being 2.25 bathrooms. Similarly, condition 5 bathrooms have a majority of 2.5 bathrooms, with second best being 1.75, 2.25, 2.75 bathrooms. Despite these results, bathrooms do not affect the condition of a home.
+
+#SECTION 7
+
+
+## Fit Logistic Regression
+```{r}
+Data <- read.csv("kc_house_data.csv",header = TRUE)
+zipcode <- read.csv("zipcodeData.csv")
+
+## Adding region predictor
+Data$region <- c()
+for (i in 1:length(Data$zipcode)){
+  regionMatch <- zipcode[zipcode$x == Data$zipcode[i],]$region
+  Data$region[i]<- regionMatch 
+}
+## Adding Binary Variable for Good Quality Homes (Condition > 3 & Grade > 7)
+Data <- Data %>% 
+  mutate(goodQuality = ifelse(condition > 3 & grade > 7, "Yes", "No"))
+
+## Adding Variables for Grade Categories
+Data <- Data %>% 
+  mutate(grade.cat=case_when(grade <= 3 ~ "low",
+    grade >3 & grade <=6 ~ "medium low", grade == 7 ~ "average", grade > 7 & grade < 11 ~ "medium high", grade >= 11 ~ "high"))
+
+Data$grade.cat<-factor(Data$grade.cat, levels=c("low","medium low","average","medium high", "high"))
+
+Data$goodQuality <- factor(Data$goodQuality)
+
+## Factoring Categorical Variables
+Data$waterfront <- factor(Data$waterfront)
+
+## Removing errors identified in section 3
+cleanData <- Data[(Data$bedrooms!=0),]
+cleanData <- cleanData[(cleanData$bathrooms!=0),]
+cleanData <- cleanData[(cleanData$bedrooms<30),]
+cleanData <- cleanData[ , -which(names(cleanData) %in% c("date","sqft_above","sqft_basement","zipcode","lat","long"))]
+
+## Split for Training/Test Data
+
+set.seed(6021)
+sample.data<-sample.int(nrow(cleanData), floor(.50*nrow(cleanData)), replace = F)
+train<-cleanData[sample.data, ]
+test<-cleanData[-sample.data, ]
+
+result<-glm(goodQuality ~ price + bedrooms + bathrooms + sqft_living + sqft_lot + floors + waterfront + view + yr_built + yr_renovated + sqft_living15 + sqft_lot15 + region, family=binomial, data=train)
+summary(result)
+
+## Check for multicolinearity-- evidence for multicolinearity (VIFs > 5)
+library(faraway) 
+faraway::vif(result)
+```
+
+## Reduced model
+
+H0: coefficients for all dropped predictors = 0
+Ha: at least one coefficient is not 0
+
+Dropped: sqft_living, sqft_lot, waterfront, sqft_lot15 (4) since not significant
+
+Since p-value is greater than 0.05, we cannot reject the null and therefore we can use the reduced model.
+```{r}
+reduced <- glm(goodQuality ~ price + bedrooms + bathrooms + floors + view + yr_built + yr_renovated + sqft_living15 + region, family=binomial, data=train)
+summary(reduced)
+
+faraway::vif(reduced)
+
+test.stat <- reduced$deviance - result$deviance
+p.val <- 1 - pchisq(test.stat, 4)
+p.val
+```
+
+## Confusion Matrix
+Data is unbalanced. Using a threshold of 0.5, the FNR was high, so we lowered the threshold.
+```{r}
+##predicted probs for test data
+preds <- predict(reduced, newdata=test, type="response")
+
+##confusion matrix with threshold of 0.5
+table(test$goodQuality, preds>0.5)
+
+##confusion matrix with threshold of 0.15
+table(test$goodQuality, preds>0.15)
+```
+
+## ROC Curve
+```{r}
+library(ROCR)
+rates <- ROCR::prediction(preds, test$goodQuality)
+roc_result <- ROCR::performance(rates,measure="tpr", x.measure="fpr")
+plot(roc_result, main="ROC Curve for Reduced Model")
+lines(x = c(0,1), y = c(0,1), col="red")
+```
+
+## AUC
+```{r}
+auc <- ROCR::performance(rates, measure = "auc") 
+auc@y.values
+```
+
+
